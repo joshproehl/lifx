@@ -13,7 +13,7 @@ defmodule Lifx.Client do
     alias Lifx.Device, as: Light
 
     @port 56700
-    @multicast {255, 255, 255, 255}
+    @multicast Application.get_env(:lifx, :multicast)
 
     defmodule State do
         defstruct udp: nil,

@@ -16,7 +16,11 @@ defmodule Lifx.Mixfile do
     [
         applications: [:logger, :cowboy, :poison],
         mod: {Lifx, []},
-        env: [tcp_server: false, tcp_port: 8800]
+        env: [
+            tcp_server: false,
+            tcp_port: 8800,
+            multicast: {255, 255, 255, 255},
+        ]
     ]
   end
 
