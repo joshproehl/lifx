@@ -7,14 +7,13 @@ defmodule Lifx.Supervisor do
     end
 
     def init(:ok) do
-        tcp_server = Application.get_env(:lifx, :tcp_server)
         children = [
             worker(Lifx.Client, []),
             supervisor(Task.Supervisor, [[name: Lifx.Client.PacketSupervisor]]),
             supervisor(Lifx.DeviceSupervisor, []),
         ]
 
-        tcp_server = Application.get_env(:lifx, :tcp_server, false)
+        tcp_server = Application.get_env(:lifx, :tcp_server)
         children =
             case tcp_server do
                 true -> [worker(Lifx.TCPServer, []) | children]
