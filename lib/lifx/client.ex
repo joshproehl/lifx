@@ -76,7 +76,6 @@ defmodule Lifx.Client do
     end
 
     def handle_call({:send, device, packet, payload}, _from, state) do
-        Logger.debug("Sending to #{inspect device}: #{inspect packet}")
         :gen_udp.send(state.udp, device.host, device.port, %Packet{packet |
             :frame_header => %FrameHeader{packet.frame_header |
                 :source => state.source
@@ -157,12 +156,12 @@ defmodule Lifx.Client do
             _ -> true
         end
 
-        updated = Light.handle_host_update(target, host, port)
+        updated = Light.host_update(target, host, port)
         Process.send(__MODULE__, updated, [])
     end
 
     def handle_packet(%Packet{:frame_address => %FrameAddress{:target => target}} = packet, _ip, _state) do
-        d = Light.handle_packet(target, packet)
+        d = Light.packet(target, packet)
         Process.send(__MODULE__, d, [])
     end
 
