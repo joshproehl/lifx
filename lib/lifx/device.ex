@@ -272,10 +272,12 @@ defmodule Lifx.Device do
                         Map.update(state, :pending_list, nil, &(Map.put(&1, sequence, pending)))
                     not is_nil(pending.from) ->
                         Logger.debug("Failed sending seq #{sequence} tries #{pending.tries}, alerting sender.")
+                        Client.stop_light(state)
                         GenServer.reply(pending.from, {:error, "Too many retries"})
                         Map.update(state, :pending_list, nil, &(Map.delete(&1, sequence)))
                     true ->
                         Logger.debug("Failed sending seq #{sequence} tries #{pending.tries}, not alerting sender.")
+                        Client.stop_light(state)
                         Map.update(state, :pending_list, nil, &(Map.delete(&1, sequence)))
                 end
             else

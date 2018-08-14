@@ -52,6 +52,10 @@ defmodule Lifx.Client do
       GenServer.call(__MODULE__, :start)
     end
 
+    def stop_light(%Device{} = device) do
+        GenServer.cast(__MODULE__, {:stop_light, device})
+    end
+
     def init(:ok) do
         source = :rand.uniform(4294967295)
         Logger.debug("Client: #{source}")
@@ -107,6 +111,13 @@ defmodule Lifx.Client do
 
     def handle_call(:devices, _from, state) do
         {:reply, state.devices, state}
+    end
+
+    def handle_cast({:stop_light, device}, state) do
+        GenServer.stop(device.id)
+        devices = Enum.filter(state.devices, fn(dev) -> dev.id != device.id end)
+        state = %State{ state | devices: devices}
+        {:noreply, state}
     end
 
     def handle_info({:gen_event_EXIT, _handler, _reason}, state) do
