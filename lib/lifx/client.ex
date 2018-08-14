@@ -14,6 +14,7 @@ defmodule Lifx.Client do
 
     @port 56700
     @multicast Application.get_env(:lifx, :multicast)
+    @poll_discover_time Application.get_env(:lifx, :poll_discover_time)
 
     defmodule State do
         defstruct udp: nil,
@@ -117,7 +118,7 @@ defmodule Lifx.Client do
 
     def handle_info(:discover, state) do
         send_discovery_packet(state.source, state.udp)
-        Process.send_after(self(), :discover, 10000)
+        Process.send_after(self(), :discover, @poll_discover_time)
         {:noreply, state}
     end
 

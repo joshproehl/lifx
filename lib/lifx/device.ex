@@ -8,6 +8,8 @@ defmodule Lifx.Device do
     alias Lifx.Protocol
     alias Lifx.Client
 
+    @poll_state_time Application.get_env(:lifx, :poll_state_time)
+
     defmodule Pending do
         @enforce_keys [:packet, :payload, :from, :tries, :timer]
         defstruct packet: nil, payload: nil, from: nil, tries: 0, timer: nil
@@ -251,7 +253,9 @@ defmodule Lifx.Device do
             :protocol_header => %ProtocolHeader{type: @getgroup}
         }
         state = schedule_packet(state, group_packet, <<>>, nil)
-        Process.send_after(self(), :state, 5000)
+        if @poll_state_time != :disable do
+            Process.send_after(self(), :state, @poll_state_time)
+        end
         {:noreply, state}
     end
 

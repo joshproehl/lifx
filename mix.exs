@@ -20,6 +20,8 @@ defmodule Lifx.Mixfile do
             tcp_server: false,
             tcp_port: 8800,
             multicast: {255, 255, 255, 255},
+            poll_state_time: 5000,
+            poll_discover_time: 10000
         ]
     ]
   end

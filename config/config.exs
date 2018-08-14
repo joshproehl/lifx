@@ -6,6 +6,8 @@ config :lifx,
   tcp_server: true,
   tcp_port: 8800,
   multicast: {255, 255, 255, 255}
+  poll_state_time: 5000,
+  poll_discover_time: 10000
 
 # This configuration is loaded before any dependency and is restricted
 # to this project. If another project depends on this project, this
