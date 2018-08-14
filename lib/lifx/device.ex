@@ -3,7 +3,7 @@ defmodule Lifx.Device do
     use Lifx.Protocol.Types
     require Logger
     alias Lifx.Protocol.{FrameHeader, FrameAddress, ProtocolHeader}
-    alias Lifx.Protocol.{Device, Packet}
+    alias Lifx.Protocol.Packet
     alias Lifx.Protocol.{HSBK, Group, Location}
     alias Lifx.Protocol
     alias Lifx.Client

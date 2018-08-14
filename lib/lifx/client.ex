@@ -100,7 +100,7 @@ defmodule Lifx.Client do
         {:reply, :ok, state}
     end
 
-    def handle_call({:handler, handler}, {pid, _} = from, state) do
+    def handle_call({:handler, handler}, {pid, _}, state) do
         Supervisor.start_child(state.events, [handler, pid])
         {:reply, :ok, %{state | :handlers => [{handler, pid} | state.handlers]}}
     end
@@ -142,7 +142,7 @@ defmodule Lifx.Client do
         {:noreply, new_state}
     end
 
-    def handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @stateservice}} = packet, ip, state) do
+    def handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @stateservice}} = packet, ip, _state) do
         target = packet.frame_address.target
         host = ip
         port = packet.payload.port
