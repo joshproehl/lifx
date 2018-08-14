@@ -173,7 +173,7 @@ defmodule Lifx.Protocol do
 
     def parse_label(payload) do
         << label::bytes-size(32) >> = payload
-        String.rstrip(label, 0)
+        String.trim_trailing(label, << 0 >>)
     end
 
     def hsbk(%HSBK{} = hsbk, duration) do

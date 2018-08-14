@@ -109,7 +109,7 @@ defmodule Lifx.Client do
         {:reply, state.devices, state}
     end
 
-    def handle_info({:gen_event_EXIT, handler, reason}, state) do
+    def handle_info({:gen_event_EXIT, _handler, _reason}, state) do
         Enum.each(state.handlers, fn(h) ->
             Supervisor.start_child(state.events, [elem(h, 0), elem(h, 1)])
         end)

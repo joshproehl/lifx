@@ -2,7 +2,6 @@ defmodule Lifx.DeviceSupervisor do
     use Supervisor
     use Lifx.Protocol.Types
     require Logger
-    alias Lifx.Protocol.Packet
     alias Lifx.Device.State, as: Device
 
     def start_link do
