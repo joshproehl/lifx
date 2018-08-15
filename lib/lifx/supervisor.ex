@@ -9,6 +9,7 @@ defmodule Lifx.Supervisor do
     def init(:ok) do
         children = [
             worker(Lifx.Client, []),
+            worker(Lifx.Poller, [[name: Lifx.Poller]]),
             supervisor(Task.Supervisor, [[name: Lifx.Client.PacketSupervisor]]),
             supervisor(Lifx.DeviceSupervisor, []),
         ]

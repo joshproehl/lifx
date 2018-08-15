@@ -8,8 +8,6 @@ defmodule Lifx.Device do
     alias Lifx.Protocol
     alias Lifx.Client
 
-    @poll_state_time Application.get_env(:lifx, :poll_state_time)
-
     defmodule Pending do
         @enforce_keys [:packet, :payload, :from, :tries, :timer]
         defstruct packet: nil, payload: nil, from: nil, tries: 0, timer: nil
@@ -59,6 +57,30 @@ defmodule Lifx.Device do
         GenServer.call(device, {:set_power, 0}, 10000)
     end
 
+    def get_location(device) do
+        GenServer.call(device, {:get_location}, 10000)
+    end
+
+    def get_label(device) do
+        GenServer.call(device, {:get_label}, 10000)
+    end
+
+    def get_color(device) do
+        GenServer.call(device, {:get_color}, 10000)
+    end
+
+    def get_wifi(device) do
+        GenServer.call(device, {:get_wifi}, 10000)
+    end
+
+    def get_power(device) do
+        GenServer.call(device, {:get_power}, 10000)
+    end
+
+    def get_group(device) do
+        GenServer.call(device, {:get_group}, 10000)
+    end
+
     def packet(device, %Packet{} = packet) do
         GenServer.call(device, {:packet, packet})
     end
@@ -68,7 +90,7 @@ defmodule Lifx.Device do
     end
 
     def init(%State{} = device) do
-        Process.send_after(self(), :state, 100)
+        Lifx.Poller.schedule_device(Lifx.Poller, device)
         {:ok, device}
     end
 
@@ -172,6 +194,66 @@ defmodule Lifx.Device do
         {:noreply, state}
     end
 
+    def handle_call({:get_location}, from, state) do
+        location_packet = %Packet{
+            :frame_header => %FrameHeader{},
+            :frame_address => %FrameAddress{target: state.id},
+            :protocol_header => %ProtocolHeader{type: @getlocation}
+        }
+        state = schedule_packet(state, location_packet, <<>>, from)
+        {:noreply, state}
+    end
+
+    def handle_call({:get_label}, from, state) do
+        label_packet = %Packet{
+            :frame_header => %FrameHeader{},
+            :frame_address => %FrameAddress{target: state.id},
+            :protocol_header => %ProtocolHeader{type: @getlabel}
+        }
+        state = schedule_packet(state, label_packet, <<>>, from)
+        {:noreply, state}
+    end
+
+    def handle_call({:get_color}, from, state) do
+        color_packet = %Packet{
+            :frame_header => %FrameHeader{},
+            :frame_address => %FrameAddress{target: state.id},
+            :protocol_header => %ProtocolHeader{type: @light_get}
+        }
+        state = schedule_packet(state, color_packet, <<>>, from)
+        {:noreply, state}
+    end
+
+    def handle_call({:get_wifi}, from, state) do
+        wifi_packet = %Packet{
+            :frame_header => %FrameHeader{},
+            :frame_address => %FrameAddress{target: state.id},
+            :protocol_header => %ProtocolHeader{type: @getwifiinfo}
+        }
+        state = schedule_packet(state, wifi_packet, <<>>, from)
+        {:noreply, state}
+    end
+
+    def handle_call({:get_power}, from, state) do
+        power_packet = %Packet{
+            :frame_header => %FrameHeader{},
+            :frame_address => %FrameAddress{target: state.id},
+            :protocol_header => %ProtocolHeader{type: @getpower}
+        }
+        state = schedule_packet(state, power_packet, <<>>, from)
+        {:noreply, state}
+    end
+
+    def handle_call({:get_group}, from, state) do
+        group_packet = %Packet{
+            :frame_header => %FrameHeader{},
+            :frame_address => %FrameAddress{target: state.id},
+            :protocol_header => %ProtocolHeader{type: @getgroup}
+        }
+        state = schedule_packet(state, group_packet, <<>>, from)
+        {:noreply, state}
+    end
+
     def handle_cast({:set_color, %HSBK{} = hsbk, duration}, state) do
         packet = %Packet{
             :frame_header => %FrameHeader{},
@@ -214,49 +296,6 @@ defmodule Lifx.Device do
         state
         |> Map.put(:sequence, sequence + 1)
         |> Map.update(:pending_list, nil, &(Map.put(&1, sequence, pending)))
-    end
-
-    def handle_info(:state, state) do
-        location_packet = %Packet{
-            :frame_header => %FrameHeader{},
-            :frame_address => %FrameAddress{target: state.id},
-            :protocol_header => %ProtocolHeader{type: @getlocation}
-        }
-        state = schedule_packet(state, location_packet, <<>>, nil)
-        label_packet = %Packet{
-            :frame_header => %FrameHeader{},
-            :frame_address => %FrameAddress{target: state.id},
-            :protocol_header => %ProtocolHeader{type: @getlabel}
-        }
-        state = schedule_packet(state, label_packet, <<>>, nil)
-        color_packet = %Packet{
-            :frame_header => %FrameHeader{},
-            :frame_address => %FrameAddress{target: state.id},
-            :protocol_header => %ProtocolHeader{type: @light_get}
-        }
-        state = schedule_packet(state, color_packet, <<>>, nil)
-        wifi_packet = %Packet{
-            :frame_header => %FrameHeader{},
-            :frame_address => %FrameAddress{target: state.id},
-            :protocol_header => %ProtocolHeader{type: @getwifiinfo}
-        }
-        state = schedule_packet(state, wifi_packet, <<>>, nil)
-        power_packet = %Packet{
-            :frame_header => %FrameHeader{},
-            :frame_address => %FrameAddress{target: state.id},
-            :protocol_header => %ProtocolHeader{type: @getpower}
-        }
-        state = schedule_packet(state, power_packet, <<>>, nil)
-        group_packet = %Packet{
-            :frame_header => %FrameHeader{},
-            :frame_address => %FrameAddress{target: state.id},
-            :protocol_header => %ProtocolHeader{type: @getgroup}
-        }
-        state = schedule_packet(state, group_packet, <<>>, nil)
-        if @poll_state_time != :disable do
-            Process.send_after(self(), :state, @poll_state_time)
-        end
-        {:noreply, state}
     end
 
     def handle_info({:send, sequence}, state) do
