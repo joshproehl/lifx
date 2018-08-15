@@ -27,7 +27,7 @@ defmodule Lifx.Device do
             hsbk: %HSBK{},
             group: %Group{},
             location: %Location{},
-            sequence: 0,
+            sequence: 1,
             pending_list: %{}
     end
 
