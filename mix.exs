@@ -20,8 +20,11 @@ defmodule Lifx.Mixfile do
             tcp_server: false,
             tcp_port: 8800,
             multicast: {255, 255, 255, 255},
-            poll_state_time: 5000,
-            poll_discover_time: 10000
+            poll_state_time: 5000,  #  Don't make this too small or the poller task will fall behind.
+            poll_discover_time: 10000,
+            max_api_timeout: 5000,      # Should be at least max_retries*wait_between_retry.
+            max_retries: 3,
+            wait_between_retry: 500
         ]
     ]
   end

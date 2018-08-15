@@ -8,6 +8,10 @@ defmodule Lifx.Device do
     alias Lifx.Protocol
     alias Lifx.Client
 
+    @max_api_timeout Application.get_env(:lifx, :max_api_timeout)
+    @max_retries Application.get_env(:lifx, :max_retries)
+    @wait_between_retry Application.get_env(:lifx, :wait_between_retry)
+
     defmodule Pending do
         @enforce_keys [:packet, :payload, :from, :tries, :timer]
         defstruct packet: nil, payload: nil, from: nil, tries: 0, timer: nil
@@ -46,39 +50,39 @@ defmodule Lifx.Device do
     end
 
     def set_color_wait(device, %HSBK{} = hsbk, duration \\ 1000) do
-        GenServer.call(device, {:set_color, hsbk, duration}, 10000)
+        GenServer.call(device, {:set_color, hsbk, duration}, @max_api_timeout)
     end
 
     def on_wait(device) do
-        GenServer.call(device, {:set_power, 65535}, 10000)
+        GenServer.call(device, {:set_power, 65535}, @max_api_timeout)
     end
 
     def off_wait(device) do
-        GenServer.call(device, {:set_power, 0}, 10000)
+        GenServer.call(device, {:set_power, 0}, @max_api_timeout)
     end
 
     def get_location(device) do
-        GenServer.call(device, {:get_location}, 10000)
+        GenServer.call(device, {:get_location}, @max_api_timeout)
     end
 
     def get_label(device) do
-        GenServer.call(device, {:get_label}, 10000)
+        GenServer.call(device, {:get_label}, @max_api_timeout)
     end
 
     def get_color(device) do
-        GenServer.call(device, {:get_color}, 10000)
+        GenServer.call(device, {:get_color}, @max_api_timeout)
     end
 
     def get_wifi(device) do
-        GenServer.call(device, {:get_wifi}, 10000)
+        GenServer.call(device, {:get_wifi}, @max_api_timeout)
     end
 
     def get_power(device) do
-        GenServer.call(device, {:get_power}, 10000)
+        GenServer.call(device, {:get_power}, @max_api_timeout)
     end
 
     def get_group(device) do
-        GenServer.call(device, {:get_group}, 10000)
+        GenServer.call(device, {:get_group}, @max_api_timeout)
     end
 
     def packet(device, %Packet{} = packet) do
@@ -303,10 +307,10 @@ defmodule Lifx.Device do
             if Map.has_key?(state.pending_list, sequence) do
                 pending = state.pending_list[sequence]
                 cond do
-                    pending.tries < 3 ->
+                    pending.tries < @max_retries ->
                         Logger.debug("Sending seq #{sequence} tries #{pending.tries}.")
                         Client.send(state, pending.packet, pending.payload)
-                        timer = Process.send_after(self(), {:send, sequence}, 1000)
+                        timer = Process.send_after(self(), {:send, sequence}, @wait_between_retry)
                         pending = %Pending{pending | tries: pending.tries + 1, timer: timer}
                         Map.update(state, :pending_list, nil, &(Map.put(&1, sequence, pending)))
                     not is_nil(pending.from) ->
