@@ -122,4 +122,4 @@ There's a good chance that by the time you've added your handler to `Lifx.Client
 
 `Lifx.Protocol` handles all protocol related functions, parsing and creating packets as well as payloads.
 
-In order to communicate with a single bulb, in a network that may contain multiple devices you would use the `Lifx.Device` interface `Lifx.Device.set_color(pid, %Lifx.Protocol.HSBK{}, duration)` where pid is `Lifx.Device.State.id`
+In order to communicate with a single bulb, in a network that may contain multiple devices you would use the `Lifx.Device` interface `Lifx.Device.set_color(device, %Lifx.Protocol.HSBK{}, duration)` where device is `Lifx.Device.State`

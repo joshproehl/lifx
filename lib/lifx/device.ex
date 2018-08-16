@@ -37,60 +37,60 @@ defmodule Lifx.Device do
         GenServer.start_link(__MODULE__, device, name: device.id)
     end
 
-    def set_color(device, %HSBK{} = hsbk, duration \\ 1000) do
-        GenServer.cast(device, {:set_color, hsbk, duration})
+    def set_color(%State{id: id}, %HSBK{} = hsbk, duration \\ 1000) do
+        GenServer.cast(id, {:set_color, hsbk, duration})
     end
 
-    def on(device) do
-        GenServer.cast(device, {:set_power, 65535})
+    def on(%State{id: id}) do
+        GenServer.cast(id, {:set_power, 65535})
     end
 
-    def off(device) do
-        GenServer.cast(device, {:set_power, 0})
+    def off(%State{id: id}) do
+        GenServer.cast(id, {:set_power, 0})
     end
 
-    def set_color_wait(device, %HSBK{} = hsbk, duration \\ 1000) do
-        GenServer.call(device, {:set_color, hsbk, duration}, @max_api_timeout)
+    def set_color_wait(%State{id: id}, %HSBK{} = hsbk, duration \\ 1000) do
+        GenServer.call(id, {:set_color, hsbk, duration}, @max_api_timeout)
     end
 
-    def on_wait(device) do
-        GenServer.call(device, {:set_power, 65535}, @max_api_timeout)
+    def on_wait(%State{id: id}) do
+        GenServer.call(id, {:set_power, 65535}, @max_api_timeout)
     end
 
-    def off_wait(device) do
-        GenServer.call(device, {:set_power, 0}, @max_api_timeout)
+    def off_wait(%State{id: id}) do
+        GenServer.call(id, {:set_power, 0}, @max_api_timeout)
     end
 
-    def get_location(device) do
-        GenServer.call(device, {:get_location}, @max_api_timeout)
+    def get_location(%State{id: id}) do
+        GenServer.call(id, {:get_location}, @max_api_timeout)
     end
 
-    def get_label(device) do
-        GenServer.call(device, {:get_label}, @max_api_timeout)
+    def get_label(%State{id: id}) do
+        GenServer.call(id, {:get_label}, @max_api_timeout)
     end
 
-    def get_color(device) do
-        GenServer.call(device, {:get_color}, @max_api_timeout)
+    def get_color(%State{id: id}) do
+        GenServer.call(id, {:get_color}, @max_api_timeout)
     end
 
-    def get_wifi(device) do
-        GenServer.call(device, {:get_wifi}, @max_api_timeout)
+    def get_wifi(%State{id: id}) do
+        GenServer.call(id, {:get_wifi}, @max_api_timeout)
     end
 
-    def get_power(device) do
-        GenServer.call(device, {:get_power}, @max_api_timeout)
+    def get_power(%State{id: id}) do
+        GenServer.call(id, {:get_power}, @max_api_timeout)
     end
 
-    def get_group(device) do
-        GenServer.call(device, {:get_group}, @max_api_timeout)
+    def get_group(%State{id: id}) do
+        GenServer.call(id, {:get_group}, @max_api_timeout)
     end
 
-    def packet(device, %Packet{} = packet) do
-        GenServer.call(device, {:packet, packet})
+    def packet(id, %Packet{} = packet) do
+        GenServer.call(id, {:packet, packet})
     end
 
-    def host_update(device, host, port) do
-        GenServer.call(device, {:update_host, host, port})
+    def host_update(id, host, port) do
+        GenServer.call(id, {:update_host, host, port})
     end
 
     def init(%State{} = device) do
