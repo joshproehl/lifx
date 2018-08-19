@@ -48,10 +48,6 @@ defmodule Lifx.Client do
         GenServer.call(__MODULE__, {:handler, handler})
     end
 
-    def start do
-      GenServer.call(__MODULE__, :start)
-    end
-
     def stop_light(%Device{} = device) do
         GenServer.cast(__MODULE__, {:stop_light, device})
     end
@@ -65,10 +61,6 @@ defmodule Lifx.Client do
         child = worker(GenServer, [], restart: :temporary)
         {:ok, events} = Supervisor.start_link([child], strategy: :simple_one_for_one, name: Lifx.Client.Events)
 
-        {:ok, %State{:source => source, :events => events}}
-    end
-
-    def handle_call(:start, _from, state) do
       udp_options = [
           :binary,
           {:broadcast, true},
@@ -77,7 +69,8 @@ defmodule Lifx.Client do
       ]
       {:ok, udp} = :gen_udp.open(0 , udp_options)
       Process.send_after(self(), :discover, 0)
-      {:reply, :ok, %State{state | udp: udp}}
+
+      {:ok, %State{source: source, events: events, udp: udp}}
     end
 
     def handle_call({:send, device, packet, payload}, _from, state) do
