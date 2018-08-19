@@ -49,6 +49,10 @@ defmodule Lifx.Device do
         GenServer.cast(id, {:set_power, 0})
     end
 
+    def set_power(%State{id: id}, power) do
+        GenServer.cast(id, {:set_power, power})
+    end
+
     def set_color_wait(%State{id: id}, %HSBK{} = hsbk, duration \\ 1000) do
         GenServer.call(id, {:set_color, hsbk, duration}, @max_api_timeout)
     end
@@ -59,6 +63,10 @@ defmodule Lifx.Device do
 
     def off_wait(%State{id: id}) do
         GenServer.call(id, {:set_power, 0}, @max_api_timeout)
+    end
+
+    def set_power_wait(%State{id: id}, power) do
+        GenServer.call(id, {:set_power, power}, @max_api_timeout)
     end
 
     def get_location(%State{id: id}) do
