@@ -58,7 +58,7 @@ defmodule Lifx.Client do
 
     def init(:ok) do
         source = :rand.uniform(4294967295)
-        Logger.debug("Client: #{source}")
+        Logger.debug("LIFX Client: #{source}")
 
         # event handler
         import Supervisor.Spec
@@ -100,6 +100,7 @@ defmodule Lifx.Client do
     end
 
     def handle_call(:discover, _from, state) do
+        Logger.debug("Running discover on demand.")
         send_discovery_packet(state.source, state.udp)
         {:reply, :ok, state}
     end
@@ -128,6 +129,7 @@ defmodule Lifx.Client do
     end
 
     def handle_info(:discover, state) do
+        Logger.debug("Running discover on timer.")
         send_discovery_packet(state.source, state.udp)
         Process.send_after(self(), :discover, @poll_discover_time)
         {:noreply, state}
