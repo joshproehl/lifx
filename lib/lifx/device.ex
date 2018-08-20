@@ -70,15 +70,27 @@ defmodule Lifx.Device do
     end
 
     def get_location(%State{id: id}) do
-        GenServer.call(id, {:get_location}, @max_api_timeout)
+        with {:ok, payload} <- GenServer.call(id, {:get_location}, @max_api_timeout) do
+            {:ok, payload.location}
+        else
+            {:error, err} -> {:error, err}
+        end
     end
 
     def get_label(%State{id: id}) do
-        GenServer.call(id, {:get_label}, @max_api_timeout)
+        with {:ok, payload} <- GenServer.call(id, {:get_label}, @max_api_timeout) do
+            {:ok, payload.label}
+        else
+            {:error, err} -> {:error, err}
+        end
     end
 
     def get_color(%State{id: id}) do
-        GenServer.call(id, {:get_color}, @max_api_timeout)
+        with {:ok, payload} <- GenServer.call(id, {:get_color}, @max_api_timeout) do
+            {:ok, payload.hsbk}
+        else
+            {:error, err} -> {:error, err}
+        end
     end
 
     def get_wifi(%State{id: id}) do
@@ -86,11 +98,19 @@ defmodule Lifx.Device do
     end
 
     def get_power(%State{id: id}) do
-        GenServer.call(id, {:get_power}, @max_api_timeout)
+        with {:ok, payload} <- GenServer.call(id, {:get_power}, @max_api_timeout) do
+            {:ok, payload.level}
+        else
+            {:error, err} -> {:error, err}
+        end
     end
 
     def get_group(%State{id: id}) do
-        GenServer.call(id, {:get_group}, @max_api_timeout)
+        with {:ok, payload} <- GenServer.call(id, {:get_location}, @max_api_timeout) do
+            {:ok, payload.location}
+        else
+            {:error, err} -> {:error, err}
+        end
     end
 
     def packet(id, %Packet{} = packet) do
