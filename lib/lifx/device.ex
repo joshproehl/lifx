@@ -33,6 +33,10 @@ defmodule Lifx.Device do
             pending_list: %{}
     end
 
+    defp prefix(state) do
+        "Light #{state.id}/#{state.label}:"
+    end
+
     def start_link(%State{} = device) do
         GenServer.start_link(__MODULE__, device, name: device.id)
     end
@@ -182,14 +186,14 @@ defmodule Lifx.Device do
                 pending = state.pending_list[sequence]
                 Process.cancel_timer(pending.timer)
                 if not is_nil(pending.from) do
-                    Logger.debug("Got seq #{sequence}, alerting sender.")
+                    Logger.debug("#{prefix state} Got seq #{sequence}, alerting sender.")
                     GenServer.reply(pending.from, {:ok, packet.payload})
                 else
-                    Logger.debug("Got seq #{sequence}, not alerting sender.")
+                    Logger.debug("#{prefix state} Got seq #{sequence}, not alerting sender.")
                 end
                 Map.update(state, :pending_list, nil, &(Map.delete(&1, sequence)))
             else
-                Logger.debug("Got seq #{sequence}, no record, presumed already done.")
+                Logger.debug("#{prefix state} Got seq #{sequence}, no record, presumed already done.")
                 state
             end
         {:reply, state, state}
@@ -310,7 +314,7 @@ defmodule Lifx.Device do
 
     def schedule_packet(state, packet, payload, from) do
         sequence = state.sequence
-        Logger.debug("Scheduling seq #{sequence}.")
+        Logger.debug("#{prefix state} Scheduling seq #{sequence}.")
 
         packet = put_in(packet.frame_address.sequence, sequence)
 
@@ -335,14 +339,14 @@ defmodule Lifx.Device do
             pending = state.pending_list[sequence]
             cond do
                 pending.tries < @max_retries ->
-                    Logger.debug("Sending seq #{sequence} tries #{pending.tries}.")
+                    Logger.debug("#{prefix state} Sending seq #{sequence} tries #{pending.tries}.")
                     Client.send(state, pending.packet, pending.payload)
                     timer = Process.send_after(self(), {:send, sequence}, @wait_between_retry)
                     pending = %Pending{pending | tries: pending.tries + 1, timer: timer}
                     state = Map.update(state, :pending_list, nil, &(Map.put(&1, sequence, pending)))
                     {:noreply, state}
                 true ->
-                    Logger.debug("Failed sending seq #{sequence} tries #{pending.tries}, killing light.")
+                    Logger.debug("#{prefix state} Failed sending seq #{sequence} tries #{pending.tries}, killing light.")
                     Client.remove_light(state)
                     Enum.each(state.pending_list, fn {_, p} ->
                         GenServer.reply(p.from, {:error, "Too many retries"})
@@ -351,7 +355,7 @@ defmodule Lifx.Device do
                     {:stop, :normal, state}
             end
         else
-            Logger.debug("Sending seq #{sequence}, no record, presumed already done.")
+            Logger.debug("#{prefix state} Sending seq #{sequence}, no record, presumed already done.")
             {:noreply, state}
         end
     end
