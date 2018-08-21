@@ -48,8 +48,8 @@ defmodule Lifx.Client do
         GenServer.call(__MODULE__, {:handler, handler})
     end
 
-    def stop_light(%Device{} = device) do
-        GenServer.cast(__MODULE__, {:stop_light, device})
+    def remove_light(%Device{} = device) do
+        GenServer.call(__MODULE__, {:remove_light, device})
     end
 
     def init(:ok) do
@@ -82,6 +82,12 @@ defmodule Lifx.Client do
         {:reply, :ok, state}
     end
 
+    def handle_call({:remove_light, device}, _from, state) do
+        devices = Enum.filter(state.devices, fn(dev) -> dev.id != device.id end)
+        state = %State{ state | devices: devices}
+        {:reply, :ok, state}
+    end
+
     def handle_call({:set_color, %HSBK{} = hsbk, duration}, _from, state) do
         payload = Protocol.hsbk(hsbk, duration)
         :gen_udp.send(state.udp, @multicast, @port, %Packet{
@@ -105,20 +111,6 @@ defmodule Lifx.Client do
 
     def handle_call(:devices, _from, state) do
         {:reply, state.devices, state}
-    end
-
-    def handle_cast({:stop_light, device}, state) do
-        GenServer.stop(device.id)
-        devices = Enum.filter(state.devices, fn(dev) -> dev.id != device.id end)
-        state = %State{ state | devices: devices}
-        {:noreply, state}
-    end
-
-    def handle_info({:gen_event_EXIT, _handler, _reason}, state) do
-        Enum.each(state.handlers, fn(h) ->
-            Supervisor.start_child(state.events, [elem(h, 0), elem(h, 1)])
-        end)
-        {:noreply, state}
     end
 
     def handle_info(:discover, state) do
