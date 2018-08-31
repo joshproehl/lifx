@@ -45,12 +45,12 @@ defmodule Lifx.Device do
         GenServer.cast(id, {:set_color, hsbk, duration})
     end
 
-    def on(%State{id: id}) do
-        GenServer.cast(id, {:set_power, 65535})
+    def on(%State{} = device) do
+        set_power(device, 65535)
     end
 
-    def off(%State{id: id}) do
-        GenServer.cast(id, {:set_power, 0})
+    def off(%State{} = device) do
+        set_power(device, 0)
     end
 
     def set_power(%State{id: id}, power) do
@@ -58,19 +58,27 @@ defmodule Lifx.Device do
     end
 
     def set_color_wait(%State{id: id}, %HSBK{} = hsbk, duration \\ 1000) do
-        GenServer.call(id, {:set_color, hsbk, duration}, @max_api_timeout)
+        with {:ok, payload} <- GenServer.call(id, {:set_color, hsbk, duration}, @max_api_timeout) do
+            {:ok, payload.hsbk}
+        else
+            {:error, err} -> {:error, err}
+        end
     end
 
-    def on_wait(%State{id: id}) do
-        GenServer.call(id, {:set_power, 65535}, @max_api_timeout)
+    def on_wait(%State{} = device) do
+        set_power_wait(device, 65535)
     end
 
-    def off_wait(%State{id: id}) do
-        GenServer.call(id, {:set_power, 0}, @max_api_timeout)
+    def off_wait(%State{} = device) do
+        set_power_wait(device, 0)
     end
 
     def set_power_wait(%State{id: id}, power) do
-        GenServer.call(id, {:set_power, power}, @max_api_timeout)
+        with {:ok, payload} <- GenServer.call(id, {:set_power, power}, @max_api_timeout) do
+            {:ok, payload.level}
+        else
+            {:error, err} -> {:error, err}
+        end
     end
 
     def get_location(%State{id: id}) do
