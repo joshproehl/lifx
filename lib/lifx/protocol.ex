@@ -194,6 +194,9 @@ defmodule Lifx.Protocol do
             brightness::little-integer-size(16),
             kelvin::little-integer-size(16),
         >> = payload
+        hue = round((360/65535) * hue)
+        saturation = round((100/65535) * saturation)
+        brightness = round((100/65535) * brightness)
         %HSBK{:hue => hue, :saturation => saturation, :brightness => brightness, :kelvin => kelvin}
     end
 
