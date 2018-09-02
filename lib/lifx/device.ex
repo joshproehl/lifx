@@ -29,7 +29,7 @@ defmodule Lifx.Device do
             hsbk: %HSBK{},
             group: %Group{},
             location: %Location{},
-            sequence: 1,
+            sequence: 0,
             pending_list: %{}
     end
 
@@ -337,8 +337,10 @@ defmodule Lifx.Device do
         }
 
 
+        next_sequence = rem(sequence + 1, 256)
+
         state
-        |> Map.put(:sequence, sequence + 1)
+        |> Map.put(:sequence, next_sequence)
         |> Map.update(:pending_list, nil, &(Map.put(&1, sequence, pending)))
     end
 
