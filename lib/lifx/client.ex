@@ -140,7 +140,7 @@ defmodule Lifx.Client do
         {:noreply, new_state}
     end
 
-    def handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @stateservice}} = packet, ip, _state) do
+    defp handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @stateservice}} = packet, ip, _state) do
         target = packet.frame_address.target
         host = ip
         port = packet.payload.port
@@ -159,18 +159,18 @@ defmodule Lifx.Client do
         Process.send(__MODULE__, updated, [])
     end
 
-    def handle_packet(%Packet{:frame_address => %FrameAddress{:target => target}} = packet, _ip, _state) do
+    defp handle_packet(%Packet{:frame_address => %FrameAddress{:target => target}} = packet, _ip, _state) do
         d = Light.packet(target, packet)
         Process.send(__MODULE__, d, [])
     end
 
-    def process(ip, payload, state) do
+    defp process(ip, payload, state) do
         payload
         |> Protocol.parse_packet
         |> handle_packet(ip, state)
     end
 
-    def send_discovery_packet(source, udp) do
+    defp send_discovery_packet(source, udp) do
         :gen_udp.send(udp, @multicast, @port, %Packet{
             :frame_header => %FrameHeader{:source => source, :tagged => 1},
             :frame_address => %FrameAddress{:res_required => 1},

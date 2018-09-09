@@ -152,31 +152,31 @@ defmodule Lifx.Device do
         {:ok, device}
     end
 
-    def handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @statelabel}} = packet, state) do
+    defp handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @statelabel}} = packet, state) do
         s = %State{state | :label => packet.payload.label}
         notify(s)
         s
     end
 
-    def handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @statepower}} = packet, state) do
+    defp handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @statepower}} = packet, state) do
         s = %State{state | :power => packet.payload.level}
         notify(s)
         s
     end
 
-    def handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @stategroup}} = packet, state) do
+    defp handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @stategroup}} = packet, state) do
         s = %State{state | :group => packet.payload.group}
         notify(s)
         s
     end
 
-    def handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @statelocation}} = packet, state) do
+    defp handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @statelocation}} = packet, state) do
         s = %State{state | :location => packet.payload.location}
         notify(s)
         s
     end
 
-    def handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @light_state}} = packet, state) do
+    defp handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @light_state}} = packet, state) do
         s = %State{state |
             :hsbk => packet.payload.hsbk,
             :power => packet.payload.power,
@@ -186,7 +186,7 @@ defmodule Lifx.Device do
         s
     end
 
-    def handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @statewifiinfo}} = packet, state) do
+    defp handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @statewifiinfo}} = packet, state) do
         s = %State{state |
             :signal => packet.payload.signal,
             :rx => packet.payload.rx,
@@ -196,7 +196,7 @@ defmodule Lifx.Device do
         s
     end
 
-    def handle_packet(_packet, state) do
+    defp handle_packet(_packet, state) do
         state
     end
 
@@ -334,7 +334,7 @@ defmodule Lifx.Device do
         {:noreply, state}
     end
 
-    def schedule_packet(state, packet, payload, from) do
+    defp schedule_packet(state, packet, payload, from) do
         sequence = state.sequence
         Logger.debug("#{prefix state} Scheduling seq #{sequence}.")
 
