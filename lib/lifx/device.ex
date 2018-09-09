@@ -79,6 +79,8 @@ defmodule Lifx.Device do
         else
             {:error, err} -> {:error, err}
         end
+    catch
+        :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
     end
 
     def get_location(%State{id: id}) do
@@ -87,6 +89,8 @@ defmodule Lifx.Device do
         else
             {:error, err} -> {:error, err}
         end
+    catch
+        :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
     end
 
     def get_label(%State{id: id}) do
@@ -95,6 +99,8 @@ defmodule Lifx.Device do
         else
             {:error, err} -> {:error, err}
         end
+    catch
+        :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
     end
 
     def get_color(%State{id: id}) do
@@ -103,10 +109,14 @@ defmodule Lifx.Device do
         else
             {:error, err} -> {:error, err}
         end
+    catch
+        :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
     end
 
     def get_wifi(%State{id: id}) do
         GenServer.call(id, {:get_wifi}, @max_api_timeout)
+    catch
+        :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
     end
 
     def get_power(%State{id: id}) do
@@ -115,6 +125,8 @@ defmodule Lifx.Device do
         else
             {:error, err} -> {:error, err}
         end
+    catch
+        :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
     end
 
     def get_group(%State{id: id}) do
@@ -123,6 +135,8 @@ defmodule Lifx.Device do
         else
             {:error, err} -> {:error, err}
         end
+    catch
+        :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
     end
 
     def packet(id, %Packet{} = packet) do
