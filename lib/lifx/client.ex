@@ -17,6 +17,13 @@ defmodule Lifx.Client do
     @poll_discover_time Application.get_env(:lifx, :poll_discover_time)
 
     defmodule State do
+        @type t :: %__MODULE__{
+            udp: port(),
+            source: integer(),
+            events: pid(),
+            handlers: [{pid(), pid()}],
+            devices: [Device.t]
+        }
         defstruct udp: nil,
             source: 0,
             events: nil,
@@ -24,34 +31,42 @@ defmodule Lifx.Client do
             devices: []
     end
 
+    @spec start_link() :: {:ok, pid()}
     def start_link do
         GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
     end
 
+    @spec discover() :: :ok
     def discover do
         GenServer.call(__MODULE__, :discover)
     end
 
+    @spec set_color(HSBK.t, integer()) :: :ok
     def set_color(%HSBK{} = hsbk, duration \\ 1000) do
         GenServer.call(__MODULE__, {:set_color, hsbk, duration})
     end
 
+    @spec send(Device.t, Packet.t, bitstring()) :: :ok
     def send(%Device{} = device, %Packet{} = packet, payload \\ <<>>) do
         GenServer.call(__MODULE__, {:send, device, packet, payload})
     end
 
+    @spec devices() :: [Device.t]
     def devices do
         GenServer.call(__MODULE__, :devices)
     end
 
+    @spec add_handler(pid()) :: :ok
     def add_handler(handler) do
         GenServer.call(__MODULE__, {:handler, handler})
     end
 
+    @spec remove_light(Device.t) :: :ok
     def remove_light(%Device{} = device) do
         GenServer.call(__MODULE__, {:remove_light, device})
     end
 
+    @spec init(:ok) :: {:ok, State.t}
     def init(:ok) do
         source = :rand.uniform(4294967295)
         Logger.debug("LIFX Client: #{source}")
@@ -140,6 +155,8 @@ defmodule Lifx.Client do
         {:noreply, new_state}
     end
 
+    @spec handle_packet(Packet.t, tuple(), State.t) :: :ok
+
     defp handle_packet(%Packet{:protocol_header => %ProtocolHeader{:type => @stateservice}} = packet, ip, _state) do
         target = packet.frame_address.target
         host = ip
@@ -159,17 +176,23 @@ defmodule Lifx.Client do
         Process.send(__MODULE__, updated, [])
     end
 
+    defp handle_packet(%Packet{:frame_address => %FrameAddress{:target => :all}}, _ip, _state) do
+        :ok
+    end
+
     defp handle_packet(%Packet{:frame_address => %FrameAddress{:target => target}} = packet, _ip, _state) do
         d = Light.packet(target, packet)
         Process.send(__MODULE__, d, [])
     end
 
+    @spec process(tuple(), bitstring(), State.t) :: :ok
     defp process(ip, payload, state) do
         payload
         |> Protocol.parse_packet
         |> handle_packet(ip, state)
     end
 
+    @spec send_discovery_packet(integer(), port()) :: :ok | {:error, atom()}
     defp send_discovery_packet(source, udp) do
         :gen_udp.send(udp, @multicast, @port, %Packet{
             :frame_header => %FrameHeader{:source => source, :tagged => 1},

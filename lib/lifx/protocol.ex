@@ -9,6 +9,13 @@ defmodule Lifx.Protocol do
     end
 
     defmodule FrameHeader do
+        @type t :: %__MODULE__{
+            origin: integer(),
+            tagged: integer(),
+            addressable: integer(),
+            protocol: integer(),
+            source: integer
+        }
         defstruct size: 0,
             origin: 0,
             tagged: 0,
@@ -18,7 +25,15 @@ defmodule Lifx.Protocol do
     end
 
     defmodule FrameAddress do
-        defstruct target: 0,
+        @type t :: %__MODULE__{
+            target: atom() | :all,
+            reserved: integer(),
+            reserved1: integer(),
+            ack_required: integer(),
+            res_required: integer(),
+            sequence: byte()
+        }
+        defstruct target: :all,
             reserved: 000000,
             reserved1: 0,
             ack_required: 0,
@@ -27,52 +42,84 @@ defmodule Lifx.Protocol do
     end
 
     defmodule ProtocolHeader do
+        @type t :: %__MODULE__{
+            reserved: integer(),
+            type: integer(),
+            reserved1: integer
+        }
         defstruct reserved: 0,
             type: 2,
             reserved1: 0
     end
 
     defmodule Packet do
-        defstruct frame_header: %FrameHeader{},
-            frame_address: %FrameAddress{},
-            protocol_header: %ProtocolHeader{},
+        @type t :: %__MODULE__{
+            frame_header: FrameHeader.t,
+            frame_address: FrameAddress.t,
+            protocol_header: ProtocolHeader.t,
+            payload: map(),
+        }
+        @enforce_keys [:frame_header, :frame_address, :protocol_header]
+        defstruct frame_header: nil,
+            frame_address: nil,
+            protocol_header: nil,
             payload: %{}
     end
 
     defmodule Group do
+        @type t :: %__MODULE__{
+            label: String.t,
+            updated_at: integer
+        }
         defstruct id: [],
             label: nil,
             updated_at: 0
     end
 
     defmodule Location do
+        @type t :: %__MODULE__{
+            label: String.t,
+            updated_at: integer
+        }
         defstruct id: [],
             label: nil,
             updated_at: 0
     end
 
     defmodule HSBK do
+        @type t :: %__MODULE__{
+            hue: integer(),
+            saturation: integer(),
+            brightness: integer(),
+            kelvin: integer(),
+        }
         defstruct [hue: 120,
             saturation: 100,
             brightness: 100,
             kelvin: 4000]
 
+        @spec hue(HSBK.t) :: integer
         def hue(hsbk) do
             round((65535/360) * hsbk.hue)
         end
 
+        @spec saturation(HSBK.t) :: integer
         def saturation(hsbk) do
             round((65535/100) * hsbk.saturation)
         end
 
+        @spec brightness(HSBK.t) :: integer
         def brightness(hsbk) do
             round((65535/100) * hsbk.brightness)
         end
 
+        @spec kelvin(HSBK.t) :: integer
         def kelvin(hsbk) do
             hsbk.kelvin
         end
     end
+
+    @spec parse_payload(Packet.t, bitstring()) :: Packet.t
 
     def parse_payload(%Packet{:protocol_header => %ProtocolHeader{:type => @stateservice}} = packet, payload) do
         <<
@@ -167,15 +214,18 @@ defmodule Lifx.Protocol do
         packet
     end
 
+    @spec label(String.t) :: bitstring()
     def label(label) do
         << label::bytes-size(32) >>
     end
 
+    @spec parse_label(bitstring()) :: String.t
     def parse_label(payload) do
         << label::bytes-size(32) >> = payload
         String.trim_trailing(label, << 0 >>)
     end
 
+    @spec hsbk(HSBK.t, integer()) :: bitstring()
     def hsbk(%HSBK{} = hsbk, duration) do
         <<
             0::little-integer-size(8),
@@ -187,6 +237,7 @@ defmodule Lifx.Protocol do
         >>
     end
 
+    @spec parse_hsbk(bitstring()) :: HSBK.t
     def parse_hsbk(payload) do
         <<
             hue::little-integer-size(16),
@@ -200,15 +251,18 @@ defmodule Lifx.Protocol do
         %HSBK{:hue => hue, :saturation => saturation, :brightness => brightness, :kelvin => kelvin}
     end
 
+    @spec level(integer()) :: bitstring()
     def level(level) do
         << level::size(16) >>
     end
 
+    @spec level(bitstring()) :: integer()
     def parse_level(payload) do
         << level::size(16) >> = payload
         level
     end
 
+    @spec parse_packet(bitstring()) :: Packet.t
     def parse_packet(payload) do
         <<
             size::little-integer-size(16),
@@ -265,12 +319,9 @@ defmodule Lifx.Protocol do
         parse_payload(packet, rest)
     end
 
+    @spec create_packet(Packet.t, bitstring()) :: bitstring()
     def create_packet(%Packet{} = packet, payload \\ <<>>) when is_binary(payload) do
-        packet = %Packet{packet |
-            :frame_address => %FrameAddress{packet.frame_address |
-                :target => atom_to_int(packet.frame_address.target)
-            }
-        }
+        target = atom_to_int(packet.frame_address.target)
         otap = reverse_bits(<<
             packet.frame_header.origin::size(2),
             packet.frame_header.tagged::size(1),
@@ -286,7 +337,7 @@ defmodule Lifx.Protocol do
             otap::bits-size(16),
             packet.frame_header.source::little-integer-size(32),
 
-            packet.frame_address.target::little-integer-size(64),
+            target::little-integer-size(64),
             packet.frame_address.reserved::little-integer-size(48),
             rar::bits-size(8),
             packet.frame_address.sequence::little-integer-size(8),
@@ -298,31 +349,33 @@ defmodule Lifx.Protocol do
         << byte_size(p)+2::little-integer-size(16) >> <> p
     end
 
-    def reverse_bits(bits) do
+    @spec reverse_bits(bitstring()) :: bitstring()
+    defp reverse_bits(bits) do
         bits
         |> :erlang.binary_to_list
         |> :lists.reverse
         |> :erlang.list_to_binary
     end
 
-    def atom_to_int(id) when id |> is_atom do
+    # @spec atom_to_int(atom()) :: integer
+    defp atom_to_int(:all), do: 0
+
+    defp atom_to_int(id) when id |> is_atom do
         id
         |> Atom.to_string
         |> String.to_integer
     end
 
-    def atom_to_int(id) when id |> is_integer do
+    defp atom_to_int(id) when id |> is_integer do
         id
     end
 
-    def int_to_atom(id) when id |> is_integer do
+    defp int_to_atom(0), do: :all
+
+    defp int_to_atom(id) when id |> is_integer do
         id
         |> Integer.to_string
         |> String.to_atom
-    end
-
-    def int_to_atom(id) when id |> is_atom do
-        id
     end
 
 end
