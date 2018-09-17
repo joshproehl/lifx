@@ -27,15 +27,11 @@ defmodule Lifx.Protocol do
     defmodule FrameAddress do
         @type t :: %__MODULE__{
             target: atom() | :all,
-            reserved: integer(),
-            reserved1: integer(),
             ack_required: integer(),
             res_required: integer(),
             sequence: byte()
         }
         defstruct target: :all,
-            reserved: 000000,
-            reserved1: 0,
             ack_required: 0,
             res_required: 0,
             sequence: 0
@@ -43,13 +39,9 @@ defmodule Lifx.Protocol do
 
     defmodule ProtocolHeader do
         @type t :: %__MODULE__{
-            reserved: integer(),
             type: integer(),
-            reserved1: integer
         }
-        defstruct reserved: 0,
-            type: 2,
-            reserved1: 0
+        defstruct type: 2
     end
 
     defmodule Packet do
@@ -134,25 +126,23 @@ defmodule Lifx.Protocol do
             signal::little-float-size(32),
             tx::little-integer-size(32),
             rx::little-integer-size(32),
-            reserved::signed-little-integer-size(16)
+            _::signed-little-integer-size(16)
         >> = payload
-        %Packet{packet | :payload => %{:signal => signal, :tx => tx, :rx => rx, :reserved => reserved}}
+        %Packet{packet | :payload => %{:signal => signal, :tx => tx, :rx => rx}}
     end
 
     def parse_payload(%Packet{:protocol_header => %ProtocolHeader{:type => @light_state}} = packet, payload) do
         <<
             hsbk::bits-size(64),
-            reserved::signed-little-size(16),
+            _::signed-little-size(16),
             power::little-size(16),
             label::bytes-size(32),
-            reserved1::little-size(64),
+            _::little-size(64),
         >> = payload
         %Packet{packet | :payload => %{
             :hsbk => parse_hsbk(hsbk),
-            :reserved => reserved,
             :power => power,
             :label => parse_label(label),
-            :reserved1 => reserved1
         }}
     end
 
@@ -200,13 +190,12 @@ defmodule Lifx.Protocol do
             signal::little-float-size(32),
             rx::little-size(32),
             tx::little-size(32),
-            reserved::signed-little-size(16)
+            _::signed-little-size(16)
         >> = payload
         %Packet{packet | :payload => %{
             :signal => signal,
             :rx => rx,
             :tx => tx,
-            :reserved => reserved
         }}
     end
 
@@ -270,13 +259,13 @@ defmodule Lifx.Protocol do
             source::little-integer-size(32),
 
             target::little-integer-size(64),
-            reserved1::little-integer-size(48),
+            _::little-integer-size(48),
             rar::bits-size(8),
             sequence::little-integer-size(8),
 
-            reserved3::little-integer-size(64),
+            _::little-integer-size(64),
             type::little-integer-size(16),
-            reserved4::little-integer-size(16),
+            _::little-integer-size(16),
             rest::binary,
         >> = payload
         <<
@@ -286,7 +275,7 @@ defmodule Lifx.Protocol do
             protocol::size(12)
         >> = reverse_bits(otap)
         <<
-            reserved2::size(6),
+            _::size(6),
             ack_required::size(1),
             res_required::size(1),
         >> = reverse_bits(rar)
@@ -300,16 +289,12 @@ defmodule Lifx.Protocol do
         }
         fa = %FrameAddress{
             :target => int_to_atom(target),
-            :reserved => reserved1,
-            :reserved1 => reserved2,
             :ack_required => ack_required,
             :res_required => res_required,
             :sequence => sequence,
         }
         ph = %ProtocolHeader{
-            :reserved => reserved3,
             :type => type,
-            :reserved1 => reserved4
         }
         packet = %Packet{
             :frame_header => fh,
@@ -329,7 +314,7 @@ defmodule Lifx.Protocol do
             packet.frame_header.protocol::size(12),
         >>)
         rar = reverse_bits(<<
-            packet.frame_address.reserved1::size(6),
+            0::size(6),
             packet.frame_address.ack_required::size(1),
             packet.frame_address.res_required::size(1),
         >>)
@@ -338,13 +323,13 @@ defmodule Lifx.Protocol do
             packet.frame_header.source::little-integer-size(32),
 
             target::little-integer-size(64),
-            packet.frame_address.reserved::little-integer-size(48),
+            0::little-integer-size(48),
             rar::bits-size(8),
             packet.frame_address.sequence::little-integer-size(8),
 
-            packet.protocol_header.reserved::little-integer-size(64),
+            0::little-integer-size(64),
             packet.protocol_header.type::little-integer-size(16),
-            packet.protocol_header.reserved1::little-integer-size(16),
+            0::little-integer-size(16),
         >> <> payload
         << byte_size(p)+2::little-integer-size(16) >> <> p
     end
