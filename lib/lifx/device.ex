@@ -63,6 +63,8 @@ defmodule Lifx.Device do
         else
             {:error, err} -> {:error, err}
         end
+    catch
+        :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
     end
 
     def on_wait(%State{} = device) do
