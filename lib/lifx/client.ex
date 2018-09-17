@@ -76,16 +76,16 @@ defmodule Lifx.Client do
         child = worker(GenServer, [], restart: :temporary)
         {:ok, events} = Supervisor.start_link([child], strategy: :simple_one_for_one, name: Lifx.Client.Events)
 
-      udp_options = [
-          :binary,
-          {:broadcast, true},
-          {:ip, {0,0,0,0}},
-          {:reuseaddr, true}
-      ]
-      {:ok, udp} = :gen_udp.open(0 , udp_options)
-      Process.send_after(self(), :discover, 0)
+        udp_options = [
+            :binary,
+            {:broadcast, true},
+            {:ip, {0,0,0,0}},
+            {:reuseaddr, true}
+        ]
+        {:ok, udp} = :gen_udp.open(0 , udp_options)
+        Process.send_after(self(), :discover, 0)
 
-      {:ok, %State{source: source, events: events, udp: udp}}
+        {:ok, %State{source: source, events: events, udp: udp}}
     end
 
     def handle_call({:send, device, packet, payload}, _from, state) do
