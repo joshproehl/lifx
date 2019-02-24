@@ -30,11 +30,6 @@ defmodule LifxTest do
         payload: %{}
     }
 
-
-    test "the truth" do
-        assert 1 + 1 == 2
-    end
-
     test "discovery packet creation" do
         data = "240000345EC68BF400000000000000000000000000000100000000000000000002000000"
         {:ok, bin} = Base.decode16(data, case: :upper)
