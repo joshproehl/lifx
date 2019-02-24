@@ -21,14 +21,10 @@ defmodule LifxTest do
         frame_address: %FrameAddress{
             ack_required: 0,
             res_required: 1,
-            reserved: 0,
-            reserved1: 0,
             sequence: 0,
-            target: :"0" #target is automatically converted to an atom for use as PID name. it is automatically converted back to int for binary transmission
+            target: :all,
         },
         protocol_header: %ProtocolHeader{
-            reserved: 0,
-            reserved1: 0,
             type: 2
         },
         payload: %{}
