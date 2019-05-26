@@ -21,8 +21,6 @@ defmodule Lifx.Mixfile do
       applications: [:logger, :cowboy, :poison],
       mod: {Lifx, []},
       env: [
-        tcp_server: false,
-        tcp_port: 8800,
         multicast: {255, 255, 255, 255},
         #  Don't make this too small or the poller task will fall behind.
         poll_state_time: 5000,
@@ -56,8 +54,6 @@ defmodule Lifx.Mixfile do
 
   defp deps do
     [
-      {:cowboy, "~> 2.2"},
-      {:poison, "~> 4.0"},
       {:ex_doc, ">= 0.0.0", only: :dev},
       {:dialyxir, "~> 1.0.0-rc.3", only: [:dev], runtime: false},
       {:mox, "~> 0.5", only: :test}

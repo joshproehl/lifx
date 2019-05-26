@@ -10,14 +10,6 @@ Automatically discover and control all of your [Lifx](http://lifx.com) lightbulb
     2. mix do deps.get, deps.compile
     3. iex -S mix
 
-For testing purposes it includes a small web frontend that's available at [http://localhost:8800](http://localhost:8800)
-
-![Web Interface](./images/web-interface1.png)
-
-The web interface currently controls all lights on the network.
-
-You can disable the web interface by setting `:lifx, tcp_server: false` in your applications config file
-
 ## Explanation
 
 As long as you are on the same subnet as your lightbulbs, you should see some information in stdout about devices being discovered

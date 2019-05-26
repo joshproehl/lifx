@@ -3,8 +3,6 @@
 use Mix.Config
 
 config :lifx,
-  tcp_server: false,
-  tcp_port: 8800,
   multicast: {192, 168, 5, 255},
   #  Don't make this too small or the poller task will fall behind.
   poll_state_time: 10 * 60 * 1000,

@@ -14,14 +14,6 @@ defmodule Lifx.Supervisor do
       supervisor(Lifx.DeviceSupervisor, [])
     ]
 
-    tcp_server = Application.get_env(:lifx, :tcp_server)
-
-    children =
-      case tcp_server do
-        true -> [worker(Lifx.TCPServer, []) | children]
-        false -> children
-      end
-
     supervise(children, strategy: :one_for_one)
   end
 end
