@@ -10,7 +10,8 @@ config :lifx,
   poll_discover_time: 1 * 60 * 10000,
   max_api_timeout: 5000,      # Should be at least max_retries*wait_between_retry.
   max_retries: 3,
-  wait_between_retry: 500
+  wait_between_retry: 500,
+  udp: Lifx.Udp
 
 # This configuration is loaded before any dependency and is restricted
 # to this project. If another project depends on this project, this
@@ -37,4 +38,4 @@ config :lifx,
 # Configuration from the imported file will override the ones defined
 # here (which is why it is important to import them last).
 #
-#     import_config "#{Mix.env}.exs"
+import_config "#{Mix.env}.exs"

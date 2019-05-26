@@ -15,6 +15,7 @@ defmodule Lifx.Client do
     @port 56700
     @multicast Application.get_env(:lifx, :multicast)
     @poll_discover_time Application.get_env(:lifx, :poll_discover_time)
+    @udp Application.get_env(:lifx, :udp)
 
     defmodule State do
         @type t :: %__MODULE__{
@@ -82,14 +83,14 @@ defmodule Lifx.Client do
             {:ip, {0,0,0,0}},
             {:reuseaddr, true}
         ]
-        {:ok, udp} = :gen_udp.open(0 , udp_options)
+        {:ok, udp} = @udp.open(0, udp_options)
         Process.send_after(self(), :discover, 0)
 
         {:ok, %State{source: source, events: events, udp: udp}}
     end
 
     def handle_call({:send, device, packet, payload}, _from, state) do
-        :gen_udp.send(state.udp, device.host, device.port, %Packet{packet |
+        @udp.send(state.udp, device.host, device.port, %Packet{packet |
             :frame_header => %FrameHeader{packet.frame_header |
                 :source => state.source
             }
@@ -105,7 +106,7 @@ defmodule Lifx.Client do
 
     def handle_call({:set_color, %HSBK{} = hsbk, duration}, _from, state) do
         payload = Protocol.hsbk(hsbk, duration)
-        :gen_udp.send(state.udp, @multicast, @port, %Packet{
+        @udp.send(state.udp, @multicast, @port, %Packet{
             :frame_header => %FrameHeader{:source => state.source, :tagged => 0},
             :frame_address => %FrameAddress{},
             :protocol_header => %ProtocolHeader{:type => @light_setcolor}
@@ -194,7 +195,7 @@ defmodule Lifx.Client do
 
     @spec send_discovery_packet(integer(), port()) :: :ok | {:error, atom()}
     defp send_discovery_packet(source, udp) do
-        :gen_udp.send(udp, @multicast, @port, %Packet{
+        @udp.send(udp, @multicast, @port, %Packet{
             :frame_header => %FrameHeader{:source => source, :tagged => 1},
             :frame_address => %FrameAddress{:res_required => 1},
             :protocol_header => %ProtocolHeader{:type => @getservice}

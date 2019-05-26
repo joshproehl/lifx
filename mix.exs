@@ -2,14 +2,18 @@ defmodule Lifx.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :lifx,
-     version: "0.1.8",
-     elixir: "~> 1.3",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     description: description(),
-     package: package(),
-     deps: deps()]
+    [
+        app: :lifx,
+        version: "0.1.8",
+        elixir: "~> 1.3",
+        build_embedded: Mix.env == :prod,
+        start_permanent: Mix.env == :prod,
+        description: description(),
+        package: package(),
+        deps: deps(),
+        aliases: aliases(),
+        elixirc_paths: elixirc_paths(Mix.env),
+    ]
   end
 
   def application do
@@ -51,7 +55,17 @@ defmodule Lifx.Mixfile do
         {:cowboy, "~> 2.2"},
         {:poison, "~> 4.0"},
         {:ex_doc, ">= 0.0.0", only: :dev},
-        {:dialyxir, "~> 1.0.0-rc.3", only: [:dev], runtime: false}
+        {:dialyxir, "~> 1.0.0-rc.3", only: [:dev], runtime: false},
+        {:mox, "~> 0.5", only: :test}
     ]
   end
+
+  defp aliases do
+    [
+        test: "test --no-start"
+    ]
+  end
+
+  defp elixirc_paths(:test), do: ["test/support", "lib"]
+  defp elixirc_paths(_),     do: ["lib"]
 end
