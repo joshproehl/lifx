@@ -6,9 +6,11 @@ config :lifx,
   tcp_server: false,
   tcp_port: 8800,
   multicast: {192, 168, 5, 255},
-  poll_state_time: 10 * 60 * 1000,  #  Don't make this too small or the poller task will fall behind.
+  #  Don't make this too small or the poller task will fall behind.
+  poll_state_time: 10 * 60 * 1000,
   poll_discover_time: 1 * 60 * 10000,
-  max_api_timeout: 5000,      # Should be at least max_retries*wait_between_retry.
+  # Should be at least max_retries*wait_between_retry.
+  max_api_timeout: 5000,
   max_retries: 3,
   wait_between_retry: 500,
   udp: Lifx.Udp
@@ -38,4 +40,4 @@ config :lifx,
 # Configuration from the imported file will override the ones defined
 # here (which is why it is important to import them last).
 #
-import_config "#{Mix.env}.exs"
+import_config "#{Mix.env()}.exs"
