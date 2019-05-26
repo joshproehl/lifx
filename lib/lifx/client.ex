@@ -6,7 +6,6 @@ defmodule Lifx.Client do
 
   alias Lifx.Protocol.{FrameHeader, FrameAddress, ProtocolHeader}
   alias Lifx.Protocol.{Device, Packet}
-  alias Lifx.Protocol.{HSBK}
   alias Lifx.Protocol
   alias Lifx.Device.State, as: Device
   alias Lifx.Client.PacketSupervisor
@@ -40,11 +39,6 @@ defmodule Lifx.Client do
   @spec discover() :: :ok
   def discover do
     GenServer.call(__MODULE__, :discover)
-  end
-
-  @spec set_color(HSBK.t(), integer()) :: :ok
-  def set_color(%HSBK{} = hsbk, duration \\ 1000) do
-    GenServer.call(__MODULE__, {:set_color, hsbk, duration})
   end
 
   @spec send(Device.t(), Packet.t(), bitstring()) :: :ok
@@ -110,24 +104,6 @@ defmodule Lifx.Client do
   def handle_call({:remove_light, device}, _from, state) do
     devices = Enum.filter(state.devices, fn dev -> dev.id != device.id end)
     state = %State{state | devices: devices}
-    {:reply, :ok, state}
-  end
-
-  def handle_call({:set_color, %HSBK{} = hsbk, duration}, _from, state) do
-    payload = Protocol.hsbk(hsbk, duration)
-
-    @udp.send(
-      state.udp,
-      @multicast,
-      @port,
-      %Packet{
-        :frame_header => %FrameHeader{:source => state.source, :tagged => 0},
-        :frame_address => %FrameAddress{},
-        :protocol_header => %ProtocolHeader{:type => @light_setcolor}
-      }
-      |> Protocol.create_packet(payload)
-    )
-
     {:reply, :ok, state}
   end
 
