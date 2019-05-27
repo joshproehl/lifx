@@ -12,7 +12,7 @@ defmodule Lifx.Poller do
     GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
-  def schedule_device(pid, device) do
+  def schedule_device(pid, %Device{} = device) do
     Process.send_after(pid, {:poll_device, device}, 0)
   end
 
@@ -43,9 +43,6 @@ defmodule Lifx.Poller do
 
     with {:ok, _} <- Device.get_location(device),
          {:ok, _} <- Device.get_label(device),
-         {:ok, _} <- Device.get_color(device),
-         {:ok, _} <- Device.get_wifi(device),
-         {:ok, _} <- Device.get_power(device),
          {:ok, _} <- Device.get_group(device) do
       nil
     else

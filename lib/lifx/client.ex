@@ -5,11 +5,10 @@ defmodule Lifx.Client do
   require Logger
 
   alias Lifx.Protocol.{FrameHeader, FrameAddress, ProtocolHeader}
-  alias Lifx.Protocol.{Device, Packet}
+  alias Lifx.Protocol.Packet
   alias Lifx.Protocol
-  alias Lifx.Device.State, as: Device
+  alias Lifx.Device
   alias Lifx.Client.PacketSupervisor
-  alias Lifx.Device, as: Light
 
   @port 56700
   @multicast Application.get_env(:lifx, :multicast)
@@ -39,11 +38,6 @@ defmodule Lifx.Client do
   @spec discover() :: :ok
   def discover do
     GenServer.call(__MODULE__, :discover)
-  end
-
-  @spec send(Device.t(), Packet.t(), bitstring()) :: :ok
-  def send(%Device{} = device, %Packet{} = packet, payload \\ <<>>) do
-    GenServer.call(__MODULE__, {:send, device, packet, payload})
   end
 
   @spec devices() :: [Device.t()]
@@ -84,21 +78,6 @@ defmodule Lifx.Client do
     Process.send_after(self(), :discover, 0)
 
     {:ok, %State{source: source, events: events, udp: udp}}
-  end
-
-  def handle_call({:send, device, packet, payload}, _from, state) do
-    @udp.send(
-      state.udp,
-      device.host,
-      device.port,
-      %Packet{
-        packet
-        | :frame_header => %FrameHeader{packet.frame_header | :source => state.source}
-      }
-      |> Protocol.create_packet(payload)
-    )
-
-    {:reply, :ok, state}
   end
 
   def handle_call({:remove_light, device}, _from, state) do
@@ -161,7 +140,7 @@ defmodule Lifx.Client do
   defp handle_packet(
          %Packet{:protocol_header => %ProtocolHeader{:type => @stateservice}} = packet,
          ip,
-         _state
+         state
        ) do
     target = packet.frame_address.target
     host = ip
@@ -169,17 +148,21 @@ defmodule Lifx.Client do
 
     case Process.whereis(target) do
       nil ->
-        Lifx.DeviceSupervisor.start_device(%Device{
-          :id => target,
-          :host => host,
-          :port => port
-        })
+        Lifx.DeviceSupervisor.start_device(
+          %Device{
+            :id => target,
+            :host => host,
+            :port => port
+          },
+          state.udp,
+          state.source
+        )
 
       _ ->
         true
     end
 
-    updated = Light.host_update(target, host, port)
+    updated = Device.host_update(target, host, port)
     Process.send(__MODULE__, updated, [])
   end
 
@@ -192,7 +175,7 @@ defmodule Lifx.Client do
          _ip,
          _state
        ) do
-    d = Light.packet(target, packet)
+    d = Device.packet(target, packet)
     Process.send(__MODULE__, d, [])
   end
 

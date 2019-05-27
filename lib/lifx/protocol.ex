@@ -1,13 +1,6 @@
 defmodule Lifx.Protocol do
   use Lifx.Protocol.Types
 
-  defmodule Device do
-    defstruct host: nil,
-              port: nil,
-              id: nil,
-              label: nil
-  end
-
   defmodule FrameHeader do
     @type t :: %__MODULE__{
             origin: integer(),

@@ -12,7 +12,7 @@ defmodule LifxTest do
   alias Lifx.Protocol
   alias Lifx.Protocol.{FrameHeader, FrameAddress, ProtocolHeader}
   alias Lifx.Protocol.{Packet}
-  alias Lifx.Device.State, as: Device
+  alias Lifx.Device
 
   @discovery_packet %Packet{
     frame_header: %FrameHeader{
@@ -111,7 +111,7 @@ defmodule LifxTest do
     Lifx.Client.add_handler(Lifx.Handler)
     fake_response = Protocol.create_packet(@discovery_response_packet, payload)
     send(client_pid, {:udp, nil, "1.2.3.4", nil, fake_response})
-    assert_receive(%Device{})
+    assert_receive({:updated, %Device{}})
     devices = Lifx.Client.devices()
     assert Enum.count(devices) > 0
 

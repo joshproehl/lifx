@@ -2,7 +2,7 @@ defmodule Lifx.DeviceSupervisor do
   use Supervisor
   use Lifx.Protocol.Types
   require Logger
-  alias Lifx.Device.State, as: Device
+  alias Lifx.Device
 
   def start_link do
     Supervisor.start_link(__MODULE__, :ok, name: __MODULE__)
@@ -16,8 +16,8 @@ defmodule Lifx.DeviceSupervisor do
     supervise(children, strategy: :simple_one_for_one)
   end
 
-  def start_device(%Device{} = device) do
+  def start_device(%Device{} = device, udp, source) do
     Logger.debug("Starting Device #{inspect(device)}")
-    Supervisor.start_child(__MODULE__, [device])
+    Supervisor.start_child(__MODULE__, [device, udp, source])
   end
 end
