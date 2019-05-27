@@ -18,7 +18,7 @@ defmodule Lifx.Mixfile do
 
   def application do
     [
-      applications: [:logger, :cowboy, :poison],
+      applications: [:logger],
       mod: {Lifx, []},
       env: [
         multicast: {255, 255, 255, 255},
