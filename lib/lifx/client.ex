@@ -50,9 +50,9 @@ defmodule Lifx.Client do
     GenServer.call(__MODULE__, {:handler, handler})
   end
 
-  @spec remove_light(Device.t()) :: :ok
-  def remove_light(%Device{} = device) do
-    GenServer.call(__MODULE__, {:remove_light, device})
+  @spec remove_device(Device.t()) :: :ok
+  def remove_device(%Device{} = device) do
+    GenServer.call(__MODULE__, {:remove_device, device})
   end
 
   @spec init(:ok) :: {:ok, State.t()}
@@ -80,7 +80,7 @@ defmodule Lifx.Client do
     {:ok, %State{source: source, events: events, udp: udp}}
   end
 
-  def handle_call({:remove_light, device}, _from, state) do
+  def handle_call({:remove_device, device}, _from, state) do
     devices = Enum.filter(state.devices, fn dev -> dev.id != device.id end)
     state = %State{state | devices: devices}
     {:reply, :ok, state}
