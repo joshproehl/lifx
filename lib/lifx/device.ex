@@ -14,21 +14,21 @@ defmodule Lifx.Device do
   @max_retries Application.get_env(:lifx, :max_retries)
   @wait_between_retry Application.get_env(:lifx, :wait_between_retry)
 
-    @type t :: %__MODULE__{
-            id: String.t(),
-            host: tuple(),
-            port: integer(),
-            label: String.t(),
-            group: Group.t(),
-            location: Location.t()
-          }
+  @type t :: %__MODULE__{
+          id: atom(),
+          host: tuple(),
+          port: integer(),
+          label: String.t(),
+          group: Group.t(),
+          location: Location.t()
+        }
 
-    defstruct id: 0,
-              host: {0, 0, 0, 0},
-              port: 57600,
-              label: nil,
-              group: %Group{},
-              location: %Location{}
+  defstruct id: 0,
+            host: {0, 0, 0, 0},
+            port: 57600,
+            label: nil,
+            group: %Group{},
+            location: %Location{}
 
   defmodule Pending do
     @type t :: %__MODULE__{
@@ -44,7 +44,7 @@ defmodule Lifx.Device do
 
   defmodule State do
     @type t :: %__MODULE__{
-            id: String.t(),
+            id: atom(),
             host: tuple(),
             port: integer(),
             label: String.t(),
@@ -56,7 +56,7 @@ defmodule Lifx.Device do
             pending_list: %{required(integer()) => Pending.t()}
           }
 
-    defstruct id: "0",
+    defstruct id: nil,
               host: {0, 0, 0, 0},
               port: 57600,
               label: nil,
@@ -101,9 +101,29 @@ defmodule Lifx.Device do
     GenServer.start_link(__MODULE__, state, name: state.id)
   end
 
+  @spec send_and_forget(atom(), integer(), bitstring()) :: :ok
+  defp send_and_forget(id, protocol_type, payload) do
+    GenServer.cast(id, {:send, protocol_type, payload})
+    :ok
+  end
+
+  @spec send_and_wait(atom(), integer(), bitstring()) :: {:ok, bitstring()} | {:error, String.t()}
+  defp send_and_wait(id, protocol_type, payload) do
+    request = {:send, protocol_type, payload}
+
+    with {:ok, payload} <- GenServer.call(id, request, @max_api_timeout) do
+      {:ok, payload}
+    else
+      {:error, err} -> {:error, err}
+    end
+  catch
+    :exit, {:noproc, _} -> {:error, "The device #{id} is dead"}
+  end
+
   @spec set_color(Device.t(), HSBK.t(), integer) :: :ok
   def set_color(%Device{id: id}, %HSBK{} = hsbk, duration \\ 1000) do
-    GenServer.cast(id, {:set_color, hsbk, duration})
+    payload = Protocol.hsbk(hsbk, duration)
+    send_and_forget(id, @light_setcolor, payload)
   end
 
   @spec on(Device.t()) :: :ok
@@ -118,18 +138,18 @@ defmodule Lifx.Device do
 
   @spec set_power(Device.t(), integer) :: :ok
   def set_power(%Device{id: id}, power) do
-    GenServer.cast(id, {:set_power, power})
+    payload = Protocol.level(power)
+    send_and_forget(id, @setpower, payload)
   end
 
   @spec set_color_wait(Device.t(), HSBK.t(), integer) :: {:ok, HSBK.t()} | {:error, String.t()}
   def set_color_wait(%Device{id: id}, %HSBK{} = hsbk, duration \\ 1000) do
-    with {:ok, payload} <- GenServer.call(id, {:set_color, hsbk, duration}, @max_api_timeout) do
-      {:ok, payload.hsbk}
-    else
-      {:error, err} -> {:error, err}
+    payload = Protocol.hsbk(hsbk, duration)
+
+    case send_and_wait(id, @light_setcolor, payload) do
+      {:ok, value} -> {:ok, value.hsbk}
+      {:error, value} -> {:error, value}
     end
-  catch
-    :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
   end
 
   @spec on_wait(Device.t()) :: {:ok, HSBK.t()} | {:error, String.t()}
@@ -144,75 +164,72 @@ defmodule Lifx.Device do
 
   @spec set_power_wait(Device.t(), integer) :: {:ok, HSBK.t()} | {:error, String.t()}
   def set_power_wait(%Device{id: id}, power) do
-    with {:ok, payload} <- GenServer.call(id, {:set_power, power}, @max_api_timeout) do
-      {:ok, payload.level}
-    else
-      {:error, err} -> {:error, err}
+    payload = Protocol.level(power)
+
+    case send_and_wait(id, @setpower, payload) do
+      {:ok, value} -> {:ok, value.level}
+      {:error, value} -> {:error, value}
     end
-  catch
-    :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
   end
 
   @spec get_location(Device.t()) :: {:ok, Location.t()} | {:error, String.t()}
   def get_location(%Device{id: id}) do
-    with {:ok, payload} <- GenServer.call(id, {:get_location}, @max_api_timeout) do
-      {:ok, payload.location}
-    else
-      {:error, err} -> {:error, err}
+    payload = <<>>
+
+    case send_and_wait(id, @getlocation, payload) do
+      {:ok, value} -> {:ok, value.location}
+      {:error, value} -> {:error, value}
     end
-  catch
-    :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
   end
 
   @spec get_label(Device.t()) :: {:ok, String.t()} | {:error, String.t()}
   def get_label(%Device{id: id}) do
-    with {:ok, payload} <- GenServer.call(id, {:get_label}, @max_api_timeout) do
-      {:ok, payload.label}
-    else
-      {:error, err} -> {:error, err}
+    payload = <<>>
+
+    case send_and_wait(id, @getlabel, payload) do
+      {:ok, value} -> {:ok, value.label}
+      {:error, value} -> {:error, value}
     end
-  catch
-    :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
   end
 
   @spec get_color(Device.t()) :: {:ok, HSBK.t()} | {:error, String.t()}
   def get_color(%Device{id: id}) do
-    with {:ok, payload} <- GenServer.call(id, {:get_color}, @max_api_timeout) do
-      {:ok, payload.hsbk}
-    else
-      {:error, err} -> {:error, err}
+    payload = <<>>
+
+    case send_and_wait(id, @light_get, payload) do
+      {:ok, value} -> {:ok, value.hsbk}
+      {:error, value} -> {:error, value}
     end
-  catch
-    :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
   end
 
   @spec get_wifi(Device.t()) :: {:ok, Packet.t()} | {:error, String.t()}
   def get_wifi(%Device{id: id}) do
-    GenServer.call(id, {:get_wifi}, @max_api_timeout)
-  catch
-    :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
+    payload = <<>>
+
+    case send_and_wait(id, @getwifiinfo, payload) do
+      {:ok, value} -> {:ok, value}
+      {:error, value} -> {:error, value}
+    end
   end
 
   @spec get_power(Device.t()) :: {:ok, integer} | {:error, String.t()}
   def get_power(%Device{id: id}) do
-    with {:ok, payload} <- GenServer.call(id, {:get_power}, @max_api_timeout) do
-      {:ok, payload.level}
-    else
-      {:error, err} -> {:error, err}
+    payload = <<>>
+
+    case send_and_wait(id, @getpower, payload) do
+      {:ok, value} -> {:ok, value.level}
+      {:error, value} -> {:error, value}
     end
-  catch
-    :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
   end
 
   @spec get_group(Device.t()) :: {:ok, Group.t()} | {:error, String.t()}
   def get_group(%Device{id: id}) do
-    with {:ok, payload} <- GenServer.call(id, {:get_location}, @max_api_timeout) do
-      {:ok, payload.location}
-    else
-      {:error, err} -> {:error, err}
+    payload = <<>>
+
+    case send_and_wait(id, @getgroup, payload) do
+      {:ok, value} -> {:ok, value.group}
+      {:error, value} -> {:error, value}
     end
-  catch
-    :exit, {:noproc, _} -> {:error, "The light #{id} is dead."}
   end
 
   @spec packet(atom(), Packet.t()) :: Device.t()
@@ -287,116 +304,24 @@ defmodule Lifx.Device do
     {:reply, s, s}
   end
 
-  def handle_call({:set_color, %HSBK{} = hsbk, duration}, from, state) do
+  def handle_call({:send, protocol_type, payload}, from, state) do
     packet = %Packet{
       :frame_header => %FrameHeader{},
       :frame_address => %FrameAddress{target: state.id, res_required: 1},
-      :protocol_header => %ProtocolHeader{type: @light_setcolor}
+      :protocol_header => %ProtocolHeader{type: protocol_type}
     }
 
-    payload = Protocol.hsbk(hsbk, duration)
     state = schedule_packet(state, packet, payload, from)
     {:noreply, state}
   end
 
-  def handle_call({:set_power, power}, from, state) do
+  def handle_cast({:send, protocol_type, payload}, state) do
     packet = %Packet{
       :frame_header => %FrameHeader{},
       :frame_address => %FrameAddress{target: state.id, res_required: 1},
-      :protocol_header => %ProtocolHeader{type: @setpower}
+      :protocol_header => %ProtocolHeader{type: protocol_type}
     }
 
-    payload = Protocol.level(power)
-    state = schedule_packet(state, packet, payload, from)
-    {:noreply, state}
-  end
-
-  def handle_call({:get_location}, from, state) do
-    location_packet = %Packet{
-      :frame_header => %FrameHeader{},
-      :frame_address => %FrameAddress{target: state.id},
-      :protocol_header => %ProtocolHeader{type: @getlocation}
-    }
-
-    state = schedule_packet(state, location_packet, <<>>, from)
-    {:noreply, state}
-  end
-
-  def handle_call({:get_label}, from, state) do
-    label_packet = %Packet{
-      :frame_header => %FrameHeader{},
-      :frame_address => %FrameAddress{target: state.id},
-      :protocol_header => %ProtocolHeader{type: @getlabel}
-    }
-
-    state = schedule_packet(state, label_packet, <<>>, from)
-    {:noreply, state}
-  end
-
-  def handle_call({:get_color}, from, state) do
-    color_packet = %Packet{
-      :frame_header => %FrameHeader{},
-      :frame_address => %FrameAddress{target: state.id},
-      :protocol_header => %ProtocolHeader{type: @light_get}
-    }
-
-    state = schedule_packet(state, color_packet, <<>>, from)
-    {:noreply, state}
-  end
-
-  def handle_call({:get_wifi}, from, state) do
-    wifi_packet = %Packet{
-      :frame_header => %FrameHeader{},
-      :frame_address => %FrameAddress{target: state.id},
-      :protocol_header => %ProtocolHeader{type: @getwifiinfo}
-    }
-
-    state = schedule_packet(state, wifi_packet, <<>>, from)
-    {:noreply, state}
-  end
-
-  def handle_call({:get_power}, from, state) do
-    power_packet = %Packet{
-      :frame_header => %FrameHeader{},
-      :frame_address => %FrameAddress{target: state.id},
-      :protocol_header => %ProtocolHeader{type: @getpower}
-    }
-
-    state = schedule_packet(state, power_packet, <<>>, from)
-    {:noreply, state}
-  end
-
-  def handle_call({:get_group}, from, state) do
-    group_packet = %Packet{
-      :frame_header => %FrameHeader{},
-      :frame_address => %FrameAddress{target: state.id},
-      :protocol_header => %ProtocolHeader{type: @getgroup}
-    }
-
-    state = schedule_packet(state, group_packet, <<>>, from)
-    {:noreply, state}
-  end
-
-  def handle_cast({:set_color, %HSBK{} = hsbk, duration}, state) do
-    packet = %Packet{
-      :frame_header => %FrameHeader{},
-      :frame_address => %FrameAddress{target: state.id, res_required: 1},
-      :protocol_header => %ProtocolHeader{type: @light_setcolor}
-    }
-
-    payload = Protocol.hsbk(hsbk, duration)
-    state = schedule_packet(state, packet, payload, nil)
-    {:noreply, state}
-  end
-
-  def handle_cast({:set_power, power}, state) do
-    packet = %Packet{
-      :frame_header => %FrameHeader{},
-      :frame_address => %FrameAddress{target: state.id, res_required: 1},
-      :protocol_header => %ProtocolHeader{type: @setpower}
-    }
-
-    payload = Protocol.level(power)
     state = schedule_packet(state, packet, payload, nil)
     {:noreply, state}
   end
@@ -477,12 +402,14 @@ defmodule Lifx.Device do
     :ok
   end
 
-  @spec notify(State.t(), :updated|:deleted) :: :ok
+  @spec notify(State.t(), :updated | :deleted) :: :ok
   defp notify(state, status) do
     device = state_to_device(state)
+
     for {_, pid, _, _} <- Supervisor.which_children(Lifx.Client.Events) do
       GenServer.cast(pid, {status, device})
     end
+
     state
   end
 end
