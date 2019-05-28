@@ -445,7 +445,7 @@ defmodule Lifx.Device do
             "#{prefix(state)} Failed sending seq #{sequence} tries #{pending.tries}, killing light."
           )
 
-          Client.remove_light(state)
+          Client.remove_light(state |> state_to_device())
           notify(state, :deleted)
 
           Enum.each(state.pending_list, fn {_, p} ->
