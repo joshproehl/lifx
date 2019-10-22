@@ -374,7 +374,12 @@ defmodule Lifx.Device do
           notify(state, :deleted)
 
           Enum.each(state.pending_list, fn {_, p} ->
-            GenServer.reply(p.from, {:error, "Too many retries"})
+            if not is_nil(pending.from) do
+              Logger.debug("#{prefix(state)} Too many retries, alerting sender.")
+              GenServer.reply(p.from, {:error, "Too many retries"})
+            else
+              Logger.debug("#{prefix(state)} Too many retries, not alerting sender.")
+            end
           end)
 
           state = Map.update(state, :pending_list, nil, &Map.delete(&1, sequence))
