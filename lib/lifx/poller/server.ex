@@ -2,45 +2,23 @@ defmodule Lifx.Poller.Server do
   use GenServer
 
   alias Lifx.Client
-  alias Lifx.Device
+  alias Lifx.Poller.Private
 
   require Logger
 
-  @poll_state_time Application.get_env(:lifx, :poll_state_time)
-
   def init(:ok) do
-    reschedule()
+    Private.reschedule()
     {:ok, %{}}
   end
 
-  defp reschedule do
-    if @poll_state_time != :disable do
-      Process.send_after(self(), :poll_all, @poll_state_time)
-    end
-  end
-
   def handle_info(:poll_all, state) do
-    Logger.debug("Polling all devices.")
-
-    Enum.each(Client.devices(), fn device ->
-      Process.send_after(self(), {:poll_device, device}, 0)
-    end)
-
-    reschedule()
+    Private.poll_device_list(Client.devices())
+    Private.reschedule()
     {:noreply, state}
   end
 
   def handle_info({:poll_device, device}, state) do
-    Logger.debug("Polling device #{device.id}.")
-
-    with {:ok, _} <- Device.get_location(device),
-         {:ok, _} <- Device.get_label(device),
-         {:ok, _} <- Device.get_group(device) do
-      nil
-    else
-      _ -> nil
-    end
-
+    Private.poll_device(device)
     {:noreply, state}
   end
 end
