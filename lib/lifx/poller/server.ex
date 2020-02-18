@@ -1,4 +1,4 @@
-defmodule Lifx.Poller do
+defmodule Lifx.Poller.Server do
   use GenServer
 
   alias Lifx.Client
@@ -7,14 +7,6 @@ defmodule Lifx.Poller do
   require Logger
 
   @poll_state_time Application.get_env(:lifx, :poll_state_time)
-
-  def start_link(_opts) do
-    GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
-  end
-
-  def schedule_device(pid, %Device{} = device) do
-    Process.send_after(pid, {:poll_device, device}, 0)
-  end
 
   def init(:ok) do
     reschedule()

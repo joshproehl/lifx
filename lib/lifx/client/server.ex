@@ -1,4 +1,4 @@
-defmodule Lifx.Client do
+defmodule Lifx.Client.Server do
   use GenServer
   use Lifx.Protocol.Types
 
@@ -28,31 +28,6 @@ defmodule Lifx.Client do
               events: nil,
               handlers: [],
               devices: []
-  end
-
-  @spec start_link() :: {:ok, pid()}
-  def start_link do
-    GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
-  end
-
-  @spec discover() :: :ok
-  def discover do
-    GenServer.call(__MODULE__, :discover)
-  end
-
-  @spec devices() :: [Device.t()]
-  def devices do
-    GenServer.call(__MODULE__, :devices)
-  end
-
-  @spec add_handler(pid()) :: :ok
-  def add_handler(handler) do
-    GenServer.call(__MODULE__, {:handler, handler})
-  end
-
-  @spec remove_device(Device.t()) :: :ok
-  def remove_device(%Device{} = device) do
-    GenServer.call(__MODULE__, {:remove_device, device})
   end
 
   @spec init(:ok) :: {:ok, State.t()}
@@ -163,7 +138,7 @@ defmodule Lifx.Client do
     end
 
     updated = Device.host_update(target, host, port)
-    Process.send(__MODULE__, updated, [])
+    Process.send(Lifx.Client, updated, [])
   end
 
   defp handle_packet(%Packet{:frame_address => %FrameAddress{:target => :all}}, _ip, _state) do
@@ -176,7 +151,7 @@ defmodule Lifx.Client do
          _state
        ) do
     d = Device.packet(target, packet)
-    Process.send(__MODULE__, d, [])
+    Process.send(Lifx.Client, d, [])
   end
 
   @spec process(tuple(), bitstring(), State.t()) :: :ok

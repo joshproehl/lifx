@@ -48,7 +48,7 @@ defmodule LifxTest do
       ack_required: 0,
       res_required: 1,
       sequence: 0,
-      target: :all
+      target: :"99"
     },
     protocol_header: %ProtocolHeader{
       type: 3
