@@ -253,7 +253,6 @@ defmodule Lifx.Protocol do
       | :payload => %{
           count: count,
           index: index,
-          colors_count: colors_count,
           colors: hsbk_list
         }
     }
