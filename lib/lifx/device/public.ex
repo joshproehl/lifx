@@ -172,25 +172,25 @@ defmodule Lifx.Device do
 
   @spec set_extended_color_zones(
           Device.t(),
+          list(HSBK.t()),
           integer,
-          :no_apply | :apply | :apply_only,
           integer,
-          list(HSBK.t())
+          :no_apply | :apply | :apply_only
         ) :: :ok
-  def set_extended_color_zones(%Device{id: id}, duration, apply, index, colors) do
-    payload = Protocol.set_extended_color_zones(duration, apply, index, colors)
+  def set_extended_color_zones(%Device{id: id}, colors, index, duration, apply) do
+    payload = Protocol.set_extended_color_zones(colors, index, duration, apply)
     send_and_forget(id, @set_extended_color_zones, payload)
   end
 
   @spec set_extended_color_zones_wait(
           Device.t(),
+          list(HSBK.t()),
           integer,
-          :no_apply | :apply | :apply_only,
           integer,
-          list(HSBK.t())
+          :no_apply | :apply | :apply_only
         ) :: {:ok, map()} | {:error, String.t()}
-  def set_extended_color_zones_wait(%Device{id: id}, duration, apply, index, colors) do
-    payload = Protocol.set_extended_color_zones(duration, apply, index, colors)
+  def set_extended_color_zones_wait(%Device{id: id}, colors, index, duration, apply) do
+    payload = Protocol.set_extended_color_zones(colors, index, duration, apply)
 
     case send_and_wait(id, @set_extended_color_zones, payload) do
       {:ok, value} -> {:ok, value}

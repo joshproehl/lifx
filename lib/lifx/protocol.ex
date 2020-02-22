@@ -450,12 +450,12 @@ defmodule Lifx.Protocol do
   end
 
   @spec set_extended_color_zones(
+          list(HSBK.t()),
           integer,
-          :no_apply | :apply | :apply_only,
           integer,
-          list(HSBK.t())
+          :no_apply | :apply | :apply_only
         ) :: bitstring()
-  def set_extended_color_zones(duration, apply, index, colors) do
+  def set_extended_color_zones(colors, index, duration, apply) do
     apply_int =
       case apply do
         :no_apply -> 0
