@@ -234,6 +234,31 @@ defmodule Lifx.Protocol do
     }
   end
 
+  def parse_payload(
+        %Packet{:protocol_header => %ProtocolHeader{:type => @state_extended_color_zones}} =
+          packet,
+        payload
+      ) do
+    <<
+      count::little-size(16),
+      index::little-size(16),
+      colors_count::little-size(8),
+      colors::binary
+    >> = payload
+
+    hsbk_list = parse_hsbk_list(colors, colors_count)
+
+    %Packet{
+      packet
+      | :payload => %{
+          count: count,
+          index: index,
+          colors_count: colors_count,
+          colors: hsbk_list
+        }
+    }
+  end
+
   def parse_payload(%Packet{} = packet, _payload) do
     packet
   end
@@ -249,14 +274,21 @@ defmodule Lifx.Protocol do
     String.trim_trailing(label, <<0>>)
   end
 
-  @spec hsbk(HSBK.t(), integer()) :: bitstring()
-  def hsbk(%HSBK{} = hsbk, duration) do
+  @spec hsbk(HSBK.t()) :: bitstring()
+  def hsbk(%HSBK{} = hsbk) do
     <<
-      0::little-integer-size(8),
       HSBK.hue(hsbk)::little-integer-size(16),
       HSBK.saturation(hsbk)::little-integer-size(16),
       HSBK.brightness(hsbk)::little-integer-size(16),
-      HSBK.kelvin(hsbk)::little-integer-size(16),
+      HSBK.kelvin(hsbk)::little-integer-size(16)
+    >>
+  end
+
+  @spec set_color(HSBK.t(), integer()) :: bitstring()
+  def set_color(%HSBK{} = hsbk, duration) do
+    <<
+      0::little-integer-size(8),
+      hsbk(hsbk)::binary-size(8),
       duration::little-integer-size(32)
     >>
   end
@@ -275,6 +307,14 @@ defmodule Lifx.Protocol do
     brightness = round(100 / 65535 * brightness)
     %HSBK{:hue => hue, :saturation => saturation, :brightness => brightness, :kelvin => kelvin}
   end
+
+  @spec parse_hsbk_list(bitstring(), integer) :: list(HSBK.t())
+  def parse_hsbk_list(payload, count) when count > 0 do
+    <<hsbk::binary-size(8), rest::binary>> = payload
+    [parse_hsbk(hsbk) | parse_hsbk_list(rest, count - 1)]
+  end
+
+  def parse_hsbk_list(_, 0), do: []
 
   @spec level(integer()) :: bitstring()
   def level(level) do
@@ -407,5 +447,31 @@ defmodule Lifx.Protocol do
     id
     |> Integer.to_string()
     |> String.to_atom()
+  end
+
+  @spec set_extended_color_zones(
+          integer,
+          :no_apply | :apply | :apply_only,
+          integer,
+          list(HSBK.t())
+        ) :: bitstring()
+  def set_extended_color_zones(duration, apply, index, colors) do
+    apply_int =
+      case apply do
+        :no_apply -> 0
+        :apply -> 1
+        :apply_only -> 2
+      end
+
+    result = Enum.map(colors, fn color -> hsbk(color) end)
+
+    head = <<
+      duration::little-integer-size(32),
+      apply_int::little-integer-size(8),
+      index::little-integer-size(16),
+      length(colors)::little-integer-size(8)
+    >>
+
+    Enum.join([head | result], <<>>)
   end
 end

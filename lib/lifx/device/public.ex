@@ -50,7 +50,7 @@ defmodule Lifx.Device do
 
   @spec set_color(Device.t(), HSBK.t(), integer) :: :ok
   def set_color(%Device{id: id}, %HSBK{} = hsbk, duration \\ 1000) do
-    payload = Protocol.hsbk(hsbk, duration)
+    payload = Protocol.set_color(hsbk, duration)
     send_and_forget(id, @light_setcolor, payload)
   end
 
@@ -72,7 +72,7 @@ defmodule Lifx.Device do
 
   @spec set_color_wait(Device.t(), HSBK.t(), integer) :: {:ok, HSBK.t()} | {:error, String.t()}
   def set_color_wait(%Device{id: id}, %HSBK{} = hsbk, duration \\ 1000) do
-    payload = Protocol.hsbk(hsbk, duration)
+    payload = Protocol.set_color(hsbk, duration)
 
     case send_and_wait(id, @light_setcolor, payload) do
       {:ok, value} -> {:ok, value.hsbk}
@@ -168,5 +168,43 @@ defmodule Lifx.Device do
   @spec host_update(GenServer.server(), tuple(), integer) :: Device.t()
   def host_update(id, host, port) do
     GenServer.call(id, {:update_host, host, port})
+  end
+
+  @spec set_extended_color_zones(
+          Device.t(),
+          integer,
+          :no_apply | :apply | :apply_only,
+          integer,
+          list(HSBK.t())
+        ) :: :ok
+  def set_extended_color_zones(%Device{id: id}, duration, apply, index, colors) do
+    payload = Protocol.set_extended_color_zones(duration, apply, index, colors)
+    send_and_forget(id, @set_extended_color_zones, payload)
+  end
+
+  @spec set_extended_color_zones_wait(
+          Device.t(),
+          integer,
+          :no_apply | :apply | :apply_only,
+          integer,
+          list(HSBK.t())
+        ) :: {:ok, map()} | {:error, String.t()}
+  def set_extended_color_zones_wait(%Device{id: id}, duration, apply, index, colors) do
+    payload = Protocol.set_extended_color_zones(duration, apply, index, colors)
+
+    case send_and_wait(id, @set_extended_color_zones, payload) do
+      {:ok, value} -> {:ok, value}
+      {:error, value} -> {:error, value}
+    end
+  end
+
+  @spec get_extended_color_zones(Device.t()) :: {:ok, map()} | {:error, String.t()}
+  def get_extended_color_zones(%Device{id: id}) do
+    payload = <<>>
+
+    case send_and_wait(id, @get_extended_color_zones, payload) do
+      {:ok, value} -> {:ok, value}
+      {:error, value} -> {:error, value}
+    end
   end
 end

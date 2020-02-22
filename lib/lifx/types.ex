@@ -34,6 +34,9 @@ defmodule Lifx.Protocol.Types do
       @light_getpower 116
       @light_setpower 117
       @light_statepower 118
+      @set_extended_color_zones 510
+      @get_extended_color_zones 511
+      @state_extended_color_zones 512
     end
   end
 end
