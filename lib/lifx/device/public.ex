@@ -130,7 +130,7 @@ defmodule Lifx.Device do
     end
   end
 
-  @spec get_wifi(Device.t()) :: {:ok, Packet.t()} | {:error, String.t()}
+  @spec get_wifi(Device.t()) :: {:ok, map()} | {:error, String.t()}
   def get_wifi(%Device{id: id}) do
     payload = <<>>
 
