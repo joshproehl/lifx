@@ -160,14 +160,18 @@ defmodule Lifx.Device do
     end
   end
 
-  @spec packet(atom(), Packet.t()) :: Device.t()
+  @spec packet(atom(), Packet.t()) :: {:ok, Device.t()} | {:error, String.t()}
   def packet(id, %Packet{} = packet) do
-    GenServer.call(id, {:packet, packet})
+    {:ok, GenServer.call(id, {:packet, packet})}
+  catch
+    :exit, {:noproc, _} -> {:error, "The device #{id} is dead"}
   end
 
-  @spec host_update(GenServer.server(), tuple(), integer) :: Device.t()
+  @spec host_update(GenServer.server(), tuple(), integer) :: {:ok, Device.t()} | {:error, String.t()}
   def host_update(id, host, port) do
-    GenServer.call(id, {:update_host, host, port})
+    {:ok, GenServer.call(id, {:update_host, host, port})}
+  catch
+    :exit, {:noproc, _} -> {:error, "The device #{id} is dead"}
   end
 
   @spec set_extended_color_zones(

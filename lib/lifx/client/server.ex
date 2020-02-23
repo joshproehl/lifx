@@ -137,8 +137,10 @@ defmodule Lifx.Client.Server do
         true
     end
 
-    updated = Device.host_update(target, host, port)
-    Process.send(Lifx.Client, updated, [])
+    case Device.host_update(target, host, port) do
+    {:ok, device} -> Process.send(Lifx.Client, device, [])
+    {:error, err} -> Logger.debug("Cannot contact new device: #{err}.")
+    end
   end
 
   defp handle_packet(%Packet{:frame_address => %FrameAddress{:target => :all}}, _ip, _state) do
@@ -150,8 +152,10 @@ defmodule Lifx.Client.Server do
          _ip,
          _state
        ) do
-    d = Device.packet(target, packet)
-    Process.send(Lifx.Client, d, [])
+    case Device.packet(target, packet) do
+    {:ok, device} -> Process.send(Lifx.Client, device, [])
+    {:error, err} -> Logger.debug("Cannot contact device for incomming packet: #{err}.")
+    end
   end
 
   @spec process(tuple(), bitstring(), State.t()) :: :ok
