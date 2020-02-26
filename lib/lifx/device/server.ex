@@ -141,10 +141,20 @@ defmodule Lifx.Device.Server do
     {:reply, s |> state_to_device(), s}
   end
 
-  def handle_call({:send, protocol_type, payload}, from, state) do
+  def handle_call({:send, protocol_type, payload, res_required}, from, state) do
+    {res_required, ack_required} =
+      case res_required do
+        true -> {1, 0}
+        false -> {0, 1}
+      end
+
     packet = %Packet{
       :frame_header => %FrameHeader{},
-      :frame_address => %FrameAddress{target: state.id, res_required: 1},
+      :frame_address => %FrameAddress{
+        target: state.id,
+        res_required: res_required,
+        ack_required: ack_required
+      },
       :protocol_header => %ProtocolHeader{type: protocol_type}
     }
 
@@ -155,7 +165,7 @@ defmodule Lifx.Device.Server do
   def handle_cast({:send, protocol_type, payload}, state) do
     packet = %Packet{
       :frame_header => %FrameHeader{},
-      :frame_address => %FrameAddress{target: state.id, res_required: 1},
+      :frame_address => %FrameAddress{target: state.id, ack_required: 1},
       :protocol_header => %ProtocolHeader{type: protocol_type}
     }
 
