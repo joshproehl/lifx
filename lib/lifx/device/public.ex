@@ -29,16 +29,16 @@ defmodule Lifx.Device do
     GenServer.start_link(Lifx.Device.Server, {device, udp, source}, name: device.id)
   end
 
-  @spec send_and_forget(atom(), integer(), bitstring()) :: :ok
-  defp send_and_forget(id, protocol_type, payload) do
-    GenServer.cast(id, {:send, protocol_type, payload})
+  @spec send_and_forget(atom(), integer(), bitstring(), :forget | :retry) :: :ok
+  defp send_and_forget(id, protocol_type, payload, mode) do
+    GenServer.cast(id, {:send, protocol_type, payload, mode})
     :ok
   end
 
-  @spec send_and_wait(atom(), integer(), bitstring(), boolean()) ::
+  @spec send_and_wait(atom(), integer(), bitstring(), :retry | :response) ::
           {:ok, bitstring()} | {:error, String.t()}
-  defp send_and_wait(id, protocol_type, payload, res_required) do
-    request = {:send, protocol_type, payload, res_required}
+  defp send_and_wait(id, protocol_type, payload, mode) do
+    request = {:send, protocol_type, payload, mode}
 
     with {:ok, payload} <- GenServer.call(id, request, @max_api_timeout) do
       {:ok, payload}
@@ -52,7 +52,7 @@ defmodule Lifx.Device do
   @spec set_color(Device.t(), HSBK.t(), integer) :: :ok
   def set_color(%Device{id: id}, %HSBK{} = hsbk, duration \\ 1000) do
     payload = Protocol.set_color(hsbk, duration)
-    send_and_forget(id, @light_setcolor, payload)
+    send_and_forget(id, @light_setcolor, payload, :retry)
   end
 
   @spec on(Device.t()) :: :ok
@@ -68,14 +68,14 @@ defmodule Lifx.Device do
   @spec set_power(Device.t(), integer) :: :ok
   def set_power(%Device{id: id}, power) do
     payload = Protocol.level(power)
-    send_and_forget(id, @setpower, payload)
+    send_and_forget(id, @setpower, payload, :retry)
   end
 
   @spec set_color_wait(Device.t(), HSBK.t(), integer) :: {:ok, HSBK.t()} | {:error, String.t()}
   def set_color_wait(%Device{id: id}, %HSBK{} = hsbk, duration \\ 1000) do
     payload = Protocol.set_color(hsbk, duration)
 
-    case send_and_wait(id, @light_setcolor, payload, true) do
+    case send_and_wait(id, @light_setcolor, payload, :response) do
       {:ok, value} -> {:ok, value.hsbk}
       {:error, value} -> {:error, value}
     end
@@ -95,7 +95,7 @@ defmodule Lifx.Device do
   def set_power_wait(%Device{id: id}, power) do
     payload = Protocol.level(power)
 
-    case send_and_wait(id, @setpower, payload, true) do
+    case send_and_wait(id, @setpower, payload, :response) do
       {:ok, value} -> {:ok, value.level}
       {:error, value} -> {:error, value}
     end
@@ -105,7 +105,7 @@ defmodule Lifx.Device do
   def get_location(%Device{id: id}) do
     payload = <<>>
 
-    case send_and_wait(id, @getlocation, payload, true) do
+    case send_and_wait(id, @getlocation, payload, :response) do
       {:ok, value} -> {:ok, value.location}
       {:error, value} -> {:error, value}
     end
@@ -115,7 +115,7 @@ defmodule Lifx.Device do
   def get_label(%Device{id: id}) do
     payload = <<>>
 
-    case send_and_wait(id, @getlabel, payload, true) do
+    case send_and_wait(id, @getlabel, payload, :response) do
       {:ok, value} -> {:ok, value.label}
       {:error, value} -> {:error, value}
     end
@@ -125,7 +125,7 @@ defmodule Lifx.Device do
   def get_color(%Device{id: id}) do
     payload = <<>>
 
-    case send_and_wait(id, @light_get, payload, true) do
+    case send_and_wait(id, @light_get, payload, :response) do
       {:ok, value} -> {:ok, value.hsbk}
       {:error, value} -> {:error, value}
     end
@@ -135,7 +135,7 @@ defmodule Lifx.Device do
   def get_wifi(%Device{id: id}) do
     payload = <<>>
 
-    case send_and_wait(id, @getwifiinfo, payload, true) do
+    case send_and_wait(id, @getwifiinfo, payload, :response) do
       {:ok, value} -> {:ok, value}
       {:error, value} -> {:error, value}
     end
@@ -145,7 +145,7 @@ defmodule Lifx.Device do
   def get_power(%Device{id: id}) do
     payload = <<>>
 
-    case send_and_wait(id, @getpower, payload, true) do
+    case send_and_wait(id, @getpower, payload, :response) do
       {:ok, value} -> {:ok, value.level}
       {:error, value} -> {:error, value}
     end
@@ -155,7 +155,7 @@ defmodule Lifx.Device do
   def get_group(%Device{id: id}) do
     payload = <<>>
 
-    case send_and_wait(id, @getgroup, payload, true) do
+    case send_and_wait(id, @getgroup, payload, :response) do
       {:ok, value} -> {:ok, value.group}
       {:error, value} -> {:error, value}
     end
@@ -185,7 +185,7 @@ defmodule Lifx.Device do
         ) :: :ok
   def set_extended_color_zones(%Device{id: id}, colors, index, duration, apply) do
     payload = Protocol.set_extended_color_zones(colors, index, duration, apply)
-    send_and_forget(id, @set_extended_color_zones, payload)
+    send_and_forget(id, @set_extended_color_zones, payload, :retry)
   end
 
   @spec set_extended_color_zones_wait(
@@ -198,7 +198,7 @@ defmodule Lifx.Device do
   def set_extended_color_zones_wait(%Device{id: id}, colors, index, duration, apply) do
     payload = Protocol.set_extended_color_zones(colors, index, duration, apply)
 
-    case send_and_wait(id, @set_extended_color_zones, payload, false) do
+    case send_and_wait(id, @set_extended_color_zones, payload, :retry) do
       {:ok, value} -> {:ok, value}
       {:error, value} -> {:error, value}
     end
@@ -208,7 +208,7 @@ defmodule Lifx.Device do
   def get_extended_color_zones(%Device{id: id}) do
     payload = <<>>
 
-    case send_and_wait(id, @get_extended_color_zones, payload, true) do
+    case send_and_wait(id, @get_extended_color_zones, payload, :response) do
       {:ok, value} -> {:ok, value}
       {:error, value} -> {:error, value}
     end

@@ -19,10 +19,11 @@ defmodule Lifx.Device.Server do
             payload: bitstring(),
             from: GenServer.server(),
             tries: integer(),
-            timer: pid()
+            timer: pid(),
+            mode: :forget | :retry | :response
           }
-    @enforce_keys [:packet, :payload, :from, :tries, :timer]
-    defstruct packet: nil, payload: nil, from: nil, tries: 0, timer: nil
+    @enforce_keys [:packet, :payload, :from, :tries, :timer, :mode]
+    defstruct packet: nil, payload: nil, from: nil, tries: 0, timer: nil, mode: nil
   end
 
   defmodule State do
@@ -141,11 +142,11 @@ defmodule Lifx.Device.Server do
     {:reply, s |> state_to_device(), s}
   end
 
-  def handle_call({:send, protocol_type, payload, res_required}, from, state) do
+  def handle_call({:send, protocol_type, payload, mode}, from, state) do
     {res_required, ack_required} =
-      case res_required do
-        true -> {1, 0}
-        false -> {0, 1}
+      case mode do
+        :response -> {1, 0}
+        :retry -> {0, 1}
       end
 
     packet = %Packet{
@@ -158,23 +159,35 @@ defmodule Lifx.Device.Server do
       :protocol_header => %ProtocolHeader{type: protocol_type}
     }
 
-    state = schedule_packet(state, packet, payload, from)
+    state = schedule_packet(state, packet, payload, from, mode)
     {:noreply, state}
   end
 
-  def handle_cast({:send, protocol_type, payload}, state) do
+  def handle_cast({:send, protocol_type, payload, mode}, state) do
+    ack_required =
+      case mode do
+        :forget -> 0
+        :retry -> 1
+      end
+
     packet = %Packet{
       :frame_header => %FrameHeader{},
-      :frame_address => %FrameAddress{target: state.id, ack_required: 1},
+      :frame_address => %FrameAddress{target: state.id, ack_required: ack_required},
       :protocol_header => %ProtocolHeader{type: protocol_type}
     }
 
-    state = schedule_packet(state, packet, payload, nil)
+    state = schedule_packet(state, packet, payload, nil, mode)
     {:noreply, state}
   end
 
-  @spec schedule_packet(State.t(), Packet.t(), bitstring(), GenServer.server()) :: State.t()
-  defp schedule_packet(state, packet, payload, from) do
+  @spec schedule_packet(
+          State.t(),
+          Packet.t(),
+          bitstring(),
+          GenServer.server(),
+          :forget | :retry | :response
+        ) :: State.t()
+  defp schedule_packet(state, packet, payload, from, mode) do
     sequence = state.sequence
     Logger.debug("#{prefix(state)} Scheduling seq #{sequence}.")
 
@@ -187,7 +200,8 @@ defmodule Lifx.Device.Server do
       payload: payload,
       from: from,
       tries: 0,
-      timer: timer
+      timer: timer,
+      mode: mode
     }
 
     next_sequence = rem(sequence + 1, 256)
@@ -204,6 +218,12 @@ defmodule Lifx.Device.Server do
       pending = state.pending_list[sequence]
 
       cond do
+        pending.mode == :forget ->
+          Logger.debug("#{prefix(state)} Sending seq #{sequence} and forgetting.")
+          send(state, pending.packet, pending.payload)
+          state = Map.update(state, :pending_list, nil, &Map.delete(&1, sequence))
+          {:noreply, state}
+
         pending.tries < @max_retries ->
           Logger.debug("#{prefix(state)} Sending seq #{sequence} tries #{pending.tries}.")
           send(state, pending.packet, pending.payload)
