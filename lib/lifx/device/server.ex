@@ -28,21 +28,16 @@ defmodule Lifx.Device.Server do
 
   defmodule State do
     @type t :: %__MODULE__{
-            id: atom(),
-            host: tuple(),
-            port: integer(),
-            label: String.t(),
-            group: Group.t(),
-            location: Location.t(),
+            device: Device.t(),
             udp: port(),
             source: integer(),
             sequence: integer(),
             pending_list: %{required(integer()) => Pending.t()}
           }
 
-    defstruct id: nil,
+    @enforce_keys [:device, :udp, :source]
+    defstruct device: nil,
               host: {0, 0, 0, 0},
-              port: 57600,
               label: nil,
               group: %Group{},
               location: %Location{},
@@ -54,30 +49,18 @@ defmodule Lifx.Device.Server do
 
   @spec prefix(State.t()) :: String.t()
   defp prefix(state) do
-    "Device #{state.id}/#{state.label}:"
+    "Device #{state.device.id}/#{state.device.label}:"
   end
 
   @spec state_to_device(State.t()) :: Device.t()
   defp state_to_device(%State{} = state) do
-    %Device{
-      id: state.id,
-      host: state.host,
-      port: state.port,
-      label: state.label,
-      group: state.group,
-      location: state.location
-    }
+    state.device
   end
 
   @spec init({Device.t(), port(), integer()}) :: {:ok, State.t()}
   def init({device, udp, source}) do
     state = %State{
-      id: device.id,
-      host: device.host,
-      port: device.port,
-      label: device.label,
-      group: device.group,
-      location: device.location,
+      device: device,
       udp: udp,
       source: source
     }
@@ -91,21 +74,24 @@ defmodule Lifx.Device.Server do
          %Packet{:protocol_header => %ProtocolHeader{:type => @statelabel}} = packet,
          state
        ) do
-    %State{state | :label => packet.payload.label} |> notify(:updated)
+    device = %Device{state.device | label: packet.payload.label}
+    %State{state | device: device} |> notify(:updated)
   end
 
   defp handle_packet(
          %Packet{:protocol_header => %ProtocolHeader{:type => @stategroup}} = packet,
          state
        ) do
-    %State{state | :group => packet.payload.group} |> notify(:updated)
+    device = %Device{state.device | group: packet.payload.group}
+    %State{state | device: device} |> notify(:updated)
   end
 
   defp handle_packet(
          %Packet{:protocol_header => %ProtocolHeader{:type => @statelocation}} = packet,
          state
        ) do
-    %State{state | :location => packet.payload.location} |> notify(:updated)
+    device = %Device{state.device | location: packet.payload.location}
+    %State{state | device: device} |> notify(:updated)
   end
 
   defp handle_packet(_packet, state) do
@@ -138,7 +124,8 @@ defmodule Lifx.Device.Server do
   end
 
   def handle_call({:update_host, host, port}, _from, state) do
-    s = %State{state | :host => host, :port => port} |> notify(:updated)
+    device = %Device{state.device | host: host, port: port}
+    s = %State{state | device: device} |> notify(:updated)
     {:reply, s |> state_to_device(), s}
   end
 
@@ -152,7 +139,7 @@ defmodule Lifx.Device.Server do
     packet = %Packet{
       :frame_header => %FrameHeader{},
       :frame_address => %FrameAddress{
-        target: state.id,
+        target: state.device.id,
         res_required: res_required,
         ack_required: ack_required
       },
@@ -172,7 +159,7 @@ defmodule Lifx.Device.Server do
 
     packet = %Packet{
       :frame_header => %FrameHeader{},
-      :frame_address => %FrameAddress{target: state.id, ack_required: ack_required},
+      :frame_address => %FrameAddress{target: state.device.id, ack_required: ack_required},
       :protocol_header => %ProtocolHeader{type: protocol_type}
     }
 
@@ -262,8 +249,8 @@ defmodule Lifx.Device.Server do
   defp send(%State{} = state, %Packet{} = packet, payload) do
     @udp.send(
       state.udp,
-      state.host,
-      state.port,
+      state.device.host,
+      state.device.port,
       %Packet{
         packet
         | :frame_header => %FrameHeader{packet.frame_header | :source => state.source}
