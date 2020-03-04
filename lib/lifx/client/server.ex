@@ -8,7 +8,6 @@ defmodule Lifx.Client.Server do
   alias Lifx.Protocol.Packet
   alias Lifx.Protocol
   alias Lifx.Device
-  alias Lifx.Client.PacketSupervisor
 
   @port 56700
   @multicast Application.get_env(:lifx, :multicast)
@@ -55,10 +54,9 @@ defmodule Lifx.Client.Server do
     {:ok, %State{source: source, events: events, udp: udp}}
   end
 
-  def handle_call({:remove_device, device}, _from, state) do
-    devices = Enum.filter(state.devices, fn dev -> dev.id != device.id end)
-    state = %State{state | devices: devices}
-    {:reply, :ok, state}
+  def handle_cast({:update_device, device}, state) do
+    state = update_device(device, state)
+    {:noreply, state}
   end
 
   def handle_call(:discover, _from, state) do
@@ -84,12 +82,42 @@ defmodule Lifx.Client.Server do
   end
 
   def handle_info({:udp, _s, ip, _port, payload}, state) do
-    Task.Supervisor.start_child(PacketSupervisor, fn -> process(ip, payload, state) end)
+    state = process(ip, payload, state)
     {:noreply, state}
   end
 
-  def handle_info(%Device{} = device, state) do
-    new_state =
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
+    devices = Enum.reject(state.devices, fn device -> device.pid == pid end)
+    {:noreply, %State{state | devices: devices}}
+  end
+
+  @spec lookup_device(atom(), State.t()) :: Device.t() | nil
+  defp lookup_device(target, state) do
+    device_list =
+      state.devices
+      |> Enum.filter(fn device -> device.id == target end)
+      |> Enum.take(-1)
+
+    case device_list do
+      [device] -> device
+      [] -> nil
+    end
+  end
+
+  @spec warn_nil_device(Device.t(), String.t()) :: Device.t() | nil
+  defp warn_nil_device(nil, msg) do
+    Logger.info(msg)
+    nil
+  end
+
+  defp warn_nil_device(%Device{} = device, _msg), do: device
+
+  @spec update_device(Device.t() | nil, State.t()) :: State.t()
+
+  defp update_device(nil, %State{} = state), do: state
+
+  defp update_device(%Device{} = device, %State{} = state) do
+    state =
       cond do
         Enum.any?(state.devices, fn dev -> dev.id == device.id end) ->
           %State{
@@ -107,10 +135,28 @@ defmodule Lifx.Client.Server do
           %State{state | :devices => [device | state.devices]}
       end
 
-    {:noreply, new_state}
+    case Device.host_update(device) do
+      :ok -> nil
+      {:error, err} -> Logger.debug("Cannot contact new #{device.id}: #{err}.")
+    end
+
+    state
   end
 
-  @spec handle_packet(Packet.t(), tuple(), State.t()) :: :ok
+  @spec dispatch_packet(Device.t() | nil, Packet.t(), State.t()) :: State.t()
+
+  defp dispatch_packet(nil, _, %State{} = state), do: state
+
+  defp dispatch_packet(%Device{} = device, %Packet{} = packet, %State{} = state) do
+    case Device.packet(device, packet) do
+      :ok -> nil
+      {:error, err} -> Logger.debug("Cannot contact #{device.id}: #{err}.")
+    end
+
+    state
+  end
+
+  @spec handle_packet(Packet.t(), tuple(), State.t()) :: State.t()
 
   defp handle_packet(
          %Packet{:protocol_header => %ProtocolHeader{:type => @stateservice}} = packet,
@@ -121,44 +167,59 @@ defmodule Lifx.Client.Server do
     host = ip
     port = packet.payload.port
 
-    case Process.whereis(target) do
-      nil ->
-        Lifx.DeviceSupervisor.start_device(
-          %Device{
-            :id => target,
-            :host => host,
-            :port => port
-          },
-          state.udp,
-          state.source
-        )
+    device =
+      case lookup_device(target, state) do
+        nil ->
+          device = %Device{
+            id: target,
+            pid: nil,
+            host: host,
+            port: port
+          }
 
-      _ ->
-        true
-    end
+          result =
+            Lifx.DeviceSupervisor.start_device(
+              device,
+              state.udp,
+              state.source
+            )
 
-    case Device.host_update(target, host, port) do
-      {:ok, device} -> Process.send(Lifx.Client, device, [])
-      {:error, err} -> Logger.debug("Cannot contact new device: #{err}.")
-    end
+          case result do
+            {:ok, child} ->
+              _ref = Process.monitor(child)
+              device = %Device{device | pid: child}
+              Lifx.Poller.schedule_device(Lifx.Poller, device)
+              device
+
+            {:error, error} ->
+              Logger.error("Cannot start device child process for #{target}: #{error}.")
+
+              nil
+          end
+
+        device ->
+          %Device{device | host: host, port: port}
+      end
+
+    update_device(device, state)
   end
 
-  defp handle_packet(%Packet{:frame_address => %FrameAddress{:target => :all}}, _ip, _state) do
-    :ok
+  defp handle_packet(%Packet{:frame_address => %FrameAddress{:target => :all}}, _ip, state) do
+    state
   end
 
   defp handle_packet(
          %Packet{:frame_address => %FrameAddress{:target => target}} = packet,
          _ip,
-         _state
+         state
        ) do
-    case Device.packet(target, packet) do
-      {:ok, device} -> Process.send(Lifx.Client, device, [])
-      {:error, err} -> Logger.debug("Cannot contact device for incomming packet: #{err}.")
-    end
+    target
+    |> lookup_device(state)
+    |> warn_nil_device("Cannot find device #{target}.")
+    |> dispatch_packet(packet, state)
   end
 
-  @spec process(tuple(), bitstring(), State.t()) :: :ok
+  @spec process(tuple(), bitstring(), State.t()) :: State.t()
   defp process(ip, payload, state) do
     payload
     |> Protocol.parse_packet()

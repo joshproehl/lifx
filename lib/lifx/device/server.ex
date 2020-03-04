@@ -6,7 +6,6 @@ defmodule Lifx.Device.Server do
   alias Lifx.Protocol.Packet
   alias Lifx.Protocol.{Group, Location}
   alias Lifx.Protocol
-  alias Lifx.Client
   alias Lifx.Device
 
   @udp Application.get_env(:lifx, :udp)
@@ -65,7 +64,6 @@ defmodule Lifx.Device.Server do
       source: source
     }
 
-    Lifx.Poller.schedule_device(Lifx.Poller, device)
     {:ok, state}
   end
 
@@ -75,6 +73,7 @@ defmodule Lifx.Device.Server do
          state
        ) do
     device = %Device{state.device | label: packet.payload.label}
+    Lifx.Client.update_device(device)
     %State{state | device: device} |> notify(:updated)
   end
 
@@ -83,6 +82,7 @@ defmodule Lifx.Device.Server do
          state
        ) do
     device = %Device{state.device | group: packet.payload.group}
+    Lifx.Client.update_device(device)
     %State{state | device: device} |> notify(:updated)
   end
 
@@ -91,6 +91,7 @@ defmodule Lifx.Device.Server do
          state
        ) do
     device = %Device{state.device | location: packet.payload.location}
+    Lifx.Client.update_device(device)
     %State{state | device: device} |> notify(:updated)
   end
 
@@ -120,13 +121,12 @@ defmodule Lifx.Device.Server do
         state
       end
 
-    {:reply, state |> state_to_device(), state}
+    {:reply, :ok, state}
   end
 
-  def handle_call({:update_host, host, port}, _from, state) do
-    device = %Device{state.device | host: host, port: port}
+  def handle_call({:update_host, device}, _from, state) do
     s = %State{state | device: device} |> notify(:updated)
-    {:reply, s |> state_to_device(), s}
+    {:reply, :ok, s}
   end
 
   def handle_call({:send, protocol_type, payload, mode}, from, state) do
@@ -224,7 +224,6 @@ defmodule Lifx.Device.Server do
             "#{prefix(state)} Failed sending seq #{sequence} tries #{pending.tries}, killing light."
           )
 
-          Client.remove_device(state |> state_to_device())
           notify(state, :deleted)
 
           Enum.each(state.pending_list, fn {_, p} ->

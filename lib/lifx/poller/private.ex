@@ -18,7 +18,7 @@ defmodule Lifx.Poller.Private do
          {:ok, _} <- Device.get_group(device) do
       nil
     else
-      _ -> nil
+      {:error, error} -> Logger.debug("Got error #{error} polling #{device.id}.")
     end
   end
 
