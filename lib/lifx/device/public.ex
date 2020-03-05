@@ -2,7 +2,7 @@ defmodule Lifx.Device do
   use Lifx.Protocol.Types
   require Logger
   alias Lifx.Protocol.Packet
-  alias Lifx.Protocol.{HSBK, Group, Location}
+  alias Lifx.Protocol.{HSBK, HSBKS, Group, Location}
   alias Lifx.Protocol
   alias Lifx.Device
 
@@ -173,25 +173,33 @@ defmodule Lifx.Device do
 
   @spec set_extended_color_zones(
           Device.t(),
-          list(HSBK.t()),
-          integer,
+          HSBKS.t(),
           integer,
           :no_apply | :apply | :apply_only
         ) :: :ok
-  def set_extended_color_zones(%Device{} = device, colors, index, duration, apply) do
-    payload = Protocol.set_extended_color_zones(colors, index, duration, apply)
+  def set_extended_color_zones(
+        %Device{} = device,
+        %HSBKS{} = colors,
+        duration \\ 1000,
+        apply \\ :apply
+      ) do
+    payload = Protocol.set_extended_color_zones(colors, duration, apply)
     send_and_forget(device, @set_extended_color_zones, payload, :retry)
   end
 
   @spec set_extended_color_zones_wait(
           Device.t(),
-          list(HSBK.t()),
-          integer,
+          HSBKS.t(),
           integer,
           :no_apply | :apply | :apply_only
         ) :: {:ok, map()} | {:error, String.t()}
-  def set_extended_color_zones_wait(%Device{} = device, colors, index, duration, apply) do
-    payload = Protocol.set_extended_color_zones(colors, index, duration, apply)
+  def set_extended_color_zones_wait(
+        %Device{} = device,
+        %HSBKS{} = colors,
+        duration \\ 1000,
+        apply \\ :apply
+      ) do
+    payload = Protocol.set_extended_color_zones(colors, duration, apply)
 
     case send_and_wait(device, @set_extended_color_zones, payload, :retry) do
       {:ok, value} -> {:ok, value}
@@ -199,7 +207,7 @@ defmodule Lifx.Device do
     end
   end
 
-  @spec get_extended_color_zones(Device.t()) :: {:ok, map()} | {:error, String.t()}
+  @spec get_extended_color_zones(Device.t()) :: {:ok, HSBKS.t()} | {:error, String.t()}
   def get_extended_color_zones(%Device{} = device) do
     payload = <<>>
 

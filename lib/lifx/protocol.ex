@@ -104,6 +104,17 @@ defmodule Lifx.Protocol do
     end
   end
 
+  defmodule HSBKS do
+    @type t :: %__MODULE__{
+            total_available: integer(),
+            index: integer(),
+            list: list(HSBK.t())
+          }
+    defstruct total_available: 0,
+              index: 0,
+              list: []
+  end
+
   @spec parse_payload(Packet.t(), bitstring()) :: Packet.t()
 
   def parse_payload(
@@ -250,10 +261,10 @@ defmodule Lifx.Protocol do
 
     %Packet{
       packet
-      | :payload => %{
-          count: count,
+      | :payload => %HSBKS{
+          total_available: count,
           index: index,
-          colors: hsbk_list
+          list: hsbk_list
         }
     }
   end
@@ -449,12 +460,11 @@ defmodule Lifx.Protocol do
   end
 
   @spec set_extended_color_zones(
-          list(HSBK.t()),
-          integer,
+          HSBKS.t(),
           integer,
           :no_apply | :apply | :apply_only
         ) :: bitstring()
-  def set_extended_color_zones(colors, index, duration, apply) do
+  def set_extended_color_zones(colors, duration, apply) do
     apply_int =
       case apply do
         :no_apply -> 0
@@ -462,13 +472,13 @@ defmodule Lifx.Protocol do
         :apply_only -> 2
       end
 
-    result = Enum.map(colors, fn color -> hsbk(color) end)
+    result = Enum.map(colors.list, fn color -> hsbk(color) end)
 
     head = <<
       duration::little-integer-size(32),
       apply_int::little-integer-size(8),
-      index::little-integer-size(16),
-      length(colors)::little-integer-size(8)
+      colors.index::little-integer-size(16),
+      length(colors.list)::little-integer-size(8)
     >>
 
     Enum.join([head | result], <<>>)
