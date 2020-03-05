@@ -24,9 +24,4 @@ defmodule Lifx.Client do
   def add_handler(handler) do
     GenServer.call(__MODULE__, {:handler, handler})
   end
-
-  @spec update_device(Device.t()) :: :ok
-  def update_device(%Device{} = device) do
-    GenServer.cast(__MODULE__, {:update_device, device})
-  end
 end

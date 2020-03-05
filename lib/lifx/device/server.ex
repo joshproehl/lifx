@@ -51,11 +51,6 @@ defmodule Lifx.Device.Server do
     "Device #{state.device.id}/#{state.device.label}:"
   end
 
-  @spec state_to_device(State.t()) :: Device.t()
-  defp state_to_device(%State{} = state) do
-    state.device
-  end
-
   @spec init({Device.t(), port(), integer()}) :: {:ok, State.t()}
   def init({device, udp, source}) do
     state = %State{
@@ -73,8 +68,7 @@ defmodule Lifx.Device.Server do
          state
        ) do
     device = %Device{state.device | label: packet.payload.label}
-    Lifx.Client.update_device(device)
-    %State{state | device: device} |> notify(:updated)
+    %State{state | device: device}
   end
 
   defp handle_packet(
@@ -82,8 +76,7 @@ defmodule Lifx.Device.Server do
          state
        ) do
     device = %Device{state.device | group: packet.payload.group}
-    Lifx.Client.update_device(device)
-    %State{state | device: device} |> notify(:updated)
+    %State{state | device: device}
   end
 
   defp handle_packet(
@@ -91,8 +84,7 @@ defmodule Lifx.Device.Server do
          state
        ) do
     device = %Device{state.device | location: packet.payload.location}
-    Lifx.Client.update_device(device)
-    %State{state | device: device} |> notify(:updated)
+    %State{state | device: device}
   end
 
   defp handle_packet(_packet, state) do
@@ -122,11 +114,6 @@ defmodule Lifx.Device.Server do
       end
 
     {:reply, :ok, state}
-  end
-
-  def handle_call({:update_host, device}, _from, state) do
-    s = %State{state | device: device} |> notify(:updated)
-    {:reply, :ok, s}
   end
 
   def handle_call({:send, protocol_type, payload, mode}, from, state) do
@@ -224,8 +211,6 @@ defmodule Lifx.Device.Server do
             "#{prefix(state)} Failed sending seq #{sequence} tries #{pending.tries}, killing light."
           )
 
-          notify(state, :deleted)
-
           Enum.each(state.pending_list, fn {_, p} ->
             if not is_nil(pending.from) do
               Logger.debug("#{prefix(state)} Too many retries, alerting sender.")
@@ -258,16 +243,5 @@ defmodule Lifx.Device.Server do
     )
 
     :ok
-  end
-
-  @spec notify(State.t(), :updated | :deleted) :: :ok
-  defp notify(state, status) do
-    device = state_to_device(state)
-
-    for {_, pid, _, _} <- Supervisor.which_children(Lifx.Client.Events) do
-      GenServer.cast(pid, {status, device})
-    end
-
-    state
   end
 end

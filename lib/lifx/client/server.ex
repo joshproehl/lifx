@@ -54,11 +54,6 @@ defmodule Lifx.Client.Server do
     {:ok, %State{source: source, events: events, udp: udp}}
   end
 
-  def handle_cast({:update_device, device}, state) do
-    state = update_device(device, state)
-    {:noreply, state}
-  end
-
   def handle_call(:discover, _from, state) do
     Logger.debug("Running discover on demand.")
     send_discovery_packet(state.source, state.udp)
@@ -87,8 +82,11 @@ defmodule Lifx.Client.Server do
   end
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
-    devices = Enum.reject(state.devices, fn device -> device.pid == pid end)
-    {:noreply, %State{state | devices: devices}}
+    {pid_devices, other_devices} =
+      Enum.split_with(state.devices, fn device -> device.pid == pid end)
+
+    pid_devices |> Enum.take(-1) |> hd |> notify(:deleted)
+    {:noreply, %State{state | devices: other_devices}}
   end
 
   @spec lookup_device(atom(), State.t()) :: Device.t() | nil
@@ -104,48 +102,29 @@ defmodule Lifx.Client.Server do
     end
   end
 
-  @spec warn_nil_device(Device.t(), String.t()) :: Device.t() | nil
-  defp warn_nil_device(nil, msg) do
-    Logger.info(msg)
-    nil
-  end
-
-  defp warn_nil_device(%Device{} = device, _msg), do: device
-
-  @spec update_device(Device.t() | nil, State.t()) :: State.t()
-
-  defp update_device(nil, %State{} = state), do: state
+  @spec update_device(Device.t(), State.t()) :: State.t()
 
   defp update_device(%Device{} = device, %State{} = state) do
-    state =
+    notify(device, :updated)
+
+    devices =
       cond do
         Enum.any?(state.devices, fn dev -> dev.id == device.id end) ->
-          %State{
-            state
-            | :devices =>
-                Enum.map(state.devices, fn d ->
-                  cond do
-                    device.id == d.id -> device
-                    true -> d
-                  end
-                end)
-          }
+          Enum.map(state.devices, fn d ->
+            cond do
+              device.id == d.id -> device
+              true -> d
+            end
+          end)
 
         true ->
-          %State{state | :devices => [device | state.devices]}
+          [device | state.devices]
       end
 
-    case Device.host_update(device) do
-      :ok -> nil
-      {:error, err} -> Logger.debug("Cannot contact new #{device.id}: #{err}.")
-    end
-
-    state
+    %State{state | :devices => devices}
   end
 
-  @spec dispatch_packet(Device.t() | nil, Packet.t(), State.t()) :: State.t()
-
-  defp dispatch_packet(nil, _, %State{} = state), do: state
+  @spec dispatch_packet(Device.t(), Packet.t(), State.t()) :: State.t()
 
   defp dispatch_packet(%Device{} = device, %Packet{} = packet, %State{} = state) do
     case Device.packet(device, packet) do
@@ -153,6 +132,38 @@ defmodule Lifx.Client.Server do
       {:error, err} -> Logger.debug("Cannot contact #{device.id}: #{err}.")
     end
 
+    state
+  end
+
+  @spec update_device_from_packet(Device.t(), Packet.t(), State.t()) :: State.t()
+  defp update_device_from_packet(
+         %Device{} = device,
+         %Packet{:protocol_header => %ProtocolHeader{:type => @statelabel}} = packet,
+         state
+       ) do
+    %Device{device | label: packet.payload.label}
+    |> update_device(state)
+  end
+
+  defp update_device_from_packet(
+         %Device{} = device,
+         %Packet{:protocol_header => %ProtocolHeader{:type => @stategroup}} = packet,
+         state
+       ) do
+    %Device{device | group: packet.payload.group}
+    |> update_device(state)
+  end
+
+  defp update_device_from_packet(
+         %Device{} = device,
+         %Packet{:protocol_header => %ProtocolHeader{:type => @statelocation}} = packet,
+         state
+       ) do
+    %Device{device | location: packet.payload.location}
+    |> update_device(state)
+  end
+
+  defp update_device_from_packet(_device, _packet, state) do
     state
   end
 
@@ -201,7 +212,10 @@ defmodule Lifx.Client.Server do
           %Device{device | host: host, port: port}
       end
 
-    update_device(device, state)
+    case device do
+      nil -> state
+      device -> update_device(device, state)
+    end
   end
 
   defp handle_packet(%Packet{:frame_address => %FrameAddress{:target => :all}}, _ip, state) do
@@ -213,10 +227,15 @@ defmodule Lifx.Client.Server do
          _ip,
          state
        ) do
-    target
-    |> lookup_device(state)
-    |> warn_nil_device("Cannot find device #{target}.")
-    |> dispatch_packet(packet, state)
+    case lookup_device(target, state) do
+      nil ->
+        Logger.debug("Cannot find device #{target}.")
+        state
+
+      device ->
+        state = update_device_from_packet(device, packet, state)
+        dispatch_packet(device, packet, state)
+    end
   end
 
   @spec process(tuple(), bitstring(), State.t()) :: State.t()
@@ -239,5 +258,14 @@ defmodule Lifx.Client.Server do
       }
       |> Protocol.create_packet()
     )
+  end
+
+  @spec notify(Device.t(), :updated | :deleted) :: :ok
+  defp notify(device, status) do
+    for {_, pid, _, _} <- Supervisor.which_children(Lifx.Client.Events) do
+      GenServer.cast(pid, {status, device})
+    end
+
+    :ok
   end
 end

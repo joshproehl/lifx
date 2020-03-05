@@ -171,13 +171,6 @@ defmodule Lifx.Device do
     :exit, value -> {:error, "The device #{device.id} is dead: #{inspect(value)}"}
   end
 
-  @spec host_update(Device.t()) :: :ok | {:error, String.t()}
-  def host_update(%Device{} = device) do
-    :ok = GenServer.call(device.pid, {:update_host, device})
-  catch
-    :exit, value -> {:error, "The device #{device.id} is dead: #{inspect(value)}"}
-  end
-
   @spec set_extended_color_zones(
           Device.t(),
           list(HSBK.t()),
