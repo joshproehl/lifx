@@ -27,11 +27,6 @@ defmodule Lifx.Device do
             group: %Group{},
             location: %Location{}
 
-  @spec start_link(Device.t(), port(), integer()) :: {:ok, pid()}
-  def start_link(%Device{} = device, udp, source) do
-    GenServer.start_link(Lifx.Device.Server, {device, udp, source})
-  end
-
   @spec send_and_forget(Device.t(), integer(), bitstring(), :forget | :retry) :: :ok
   defp send_and_forget(%Device{pid: pid}, protocol_type, payload, mode) do
     GenServer.cast(pid, {:send, protocol_type, payload, mode})

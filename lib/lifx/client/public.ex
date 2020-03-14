@@ -5,11 +5,6 @@ defmodule Lifx.Client do
 
   alias Lifx.Device
 
-  @spec start_link() :: {:ok, pid()}
-  def start_link do
-    GenServer.start_link(Lifx.Client.Server, :ok, name: __MODULE__)
-  end
-
   @spec discover() :: :ok
   def discover do
     GenServer.call(__MODULE__, :discover)

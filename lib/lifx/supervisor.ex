@@ -8,11 +8,12 @@ defmodule Lifx.Supervisor do
 
   def init(:ok) do
     children = [
-      worker(Lifx.Client, []),
-      worker(Lifx.Poller, [[name: Lifx.Poller]]),
-      supervisor(Lifx.DeviceSupervisor, [])
+      worker(Lifx.Client.Server, []),
+      worker(Lifx.Poller.Server, [[name: Lifx.Poller]]),
+      supervisor(Lifx.DeviceSupervisor, []),
+      supervisor(Lifx.EventSupervisor, [])
     ]
 
-    supervise(children, strategy: :one_for_one)
+    Supervisor.init(children, strategy: :one_for_one)
   end
 end

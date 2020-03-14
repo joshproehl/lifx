@@ -6,6 +6,10 @@ defmodule Lifx.Poller.Server do
 
   require Logger
 
+  def start_link(_opts) do
+    GenServer.start_link(__MODULE__, :ok, name: Lifx.Poller)
+  end
+
   def init(:ok) do
     Private.reschedule()
     {:ok, %{}}

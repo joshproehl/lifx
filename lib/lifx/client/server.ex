@@ -18,28 +18,24 @@ defmodule Lifx.Client.Server do
     @type t :: %__MODULE__{
             udp: port(),
             source: integer(),
-            events: pid(),
             handlers: [{pid(), pid()}],
             devices: [Device.t()]
           }
     defstruct udp: nil,
               source: 0,
-              events: nil,
               handlers: [],
               devices: []
+  end
+
+  @spec start_link() :: {:ok, pid()}
+  def start_link do
+    GenServer.start_link(__MODULE__, :ok, name: Lifx.Client)
   end
 
   @spec init(:ok) :: {:ok, State.t()}
   def init(:ok) do
     source = :rand.uniform(4_294_967_295)
     Logger.debug("LIFX Client: #{source}")
-
-    # event handler
-    import Supervisor.Spec
-    child = worker(GenServer, [], restart: :temporary)
-
-    {:ok, events} =
-      Supervisor.start_link([child], strategy: :simple_one_for_one, name: Lifx.Client.Events)
 
     udp_options = [
       :binary,
@@ -51,7 +47,7 @@ defmodule Lifx.Client.Server do
     {:ok, udp} = @udp.open(0, udp_options)
     Process.send_after(self(), :discover, 0)
 
-    {:ok, %State{source: source, events: events, udp: udp}}
+    {:ok, %State{source: source, udp: udp}}
   end
 
   def handle_call(:discover, _from, state) do
@@ -61,7 +57,7 @@ defmodule Lifx.Client.Server do
   end
 
   def handle_call({:handler, handler}, {pid, _}, state) do
-    Supervisor.start_child(state.events, [handler, pid])
+    Lifx.EventSupervisor.start_handler(handler, pid)
     {:reply, :ok, %{state | :handlers => [{handler, pid} | state.handlers]}}
   end
 
@@ -203,7 +199,8 @@ defmodule Lifx.Client.Server do
               device
 
             {:error, error} ->
-              Logger.error("Cannot start device child process for #{target}: #{error}.")
+              IO.inspect(error)
+              Logger.error("Cannot start device child process for #{target}: #{inspect(error)}.")
 
               nil
           end
@@ -261,11 +258,7 @@ defmodule Lifx.Client.Server do
   end
 
   @spec notify(Device.t(), :updated | :deleted) :: :ok
-  defp notify(device, status) do
-    for {_, pid, _, _} <- Supervisor.which_children(Lifx.Client.Events) do
-      GenServer.cast(pid, {status, device})
-    end
-
-    :ok
+  defp notify(%Device{} = device, status) do
+    Lifx.EventSupervisor.notify(device, status)
   end
 end

@@ -1,23 +1,21 @@
 defmodule Lifx.DeviceSupervisor do
-  use Supervisor
+  use DynamicSupervisor
   use Lifx.Protocol.Types
   require Logger
   alias Lifx.Device
 
   def start_link do
-    Supervisor.start_link(__MODULE__, :ok, name: __MODULE__)
+    DynamicSupervisor.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
+  @impl true
   def init(:ok) do
-    children = [
-      worker(Lifx.Device, [], restart: :transient)
-    ]
-
-    supervise(children, strategy: :simple_one_for_one)
+    DynamicSupervisor.init(strategy: :one_for_one)
   end
 
   def start_device(%Device{} = device, udp, source) do
     Logger.debug("Starting Device #{inspect(device)}")
-    Supervisor.start_child(__MODULE__, [device, udp, source])
+    spec = {Lifx.Device.Server, {device, udp, source}}
+    DynamicSupervisor.start_child(__MODULE__, spec)
   end
 end

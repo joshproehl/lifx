@@ -51,6 +51,11 @@ defmodule Lifx.Device.Server do
     "Device #{state.device.id}/#{state.device.label}:"
   end
 
+  @spec start_link({Device.t(), port(), integer()}) :: {:ok, pid()}
+  def start_link({%Device{} = device, udp, source}) do
+    GenServer.start_link(Lifx.Device.Server, {device, udp, source})
+  end
+
   @spec init({Device.t(), port(), integer()}) :: {:ok, State.t()}
   def init({device, udp, source}) do
     state = %State{
