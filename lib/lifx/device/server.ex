@@ -1,18 +1,21 @@
 defmodule Lifx.Device.Server do
+  @moduledoc false
+
   use GenServer, restart: :transient
   use Lifx.Protocol.Types
   require Logger
-  alias Lifx.Protocol.{FrameHeader, FrameAddress, ProtocolHeader}
-  alias Lifx.Protocol.Packet
-  alias Lifx.Protocol.{Group, Location}
-  alias Lifx.Protocol
   alias Lifx.Device
+  alias Lifx.Protocol
+  alias Lifx.Protocol.{FrameAddress, FrameHeader, ProtocolHeader}
+  alias Lifx.Protocol.{Group, Location}
+  alias Lifx.Protocol.Packet
 
   @udp Application.get_env(:lifx, :udp)
   @max_retries Application.get_env(:lifx, :max_retries)
   @wait_between_retry Application.get_env(:lifx, :wait_between_retry)
 
   defmodule Pending do
+    @moduledoc false
     @type t :: %__MODULE__{
             packet: Packet.t(),
             payload: bitstring(),
@@ -26,6 +29,7 @@ defmodule Lifx.Device.Server do
   end
 
   defmodule State do
+    @moduledoc false
     @type t :: %__MODULE__{
             device: Device.t(),
             udp: port(),
@@ -105,11 +109,11 @@ defmodule Lifx.Device.Server do
         pending = state.pending_list[sequence]
         Process.cancel_timer(pending.timer)
 
-        if not is_nil(pending.from) do
+        if is_nil(pending.from) do
+          Logger.debug("#{prefix(state)} Got seq #{sequence}, not alerting sender.")
+        else
           Logger.debug("#{prefix(state)} Got seq #{sequence}, alerting sender.")
           GenServer.reply(pending.from, {:ok, packet.payload})
-        else
-          Logger.debug("#{prefix(state)} Got seq #{sequence}, not alerting sender.")
         end
 
         Map.update(state, :pending_list, nil, &Map.delete(&1, sequence))
@@ -217,11 +221,11 @@ defmodule Lifx.Device.Server do
           )
 
           Enum.each(state.pending_list, fn {_, p} ->
-            if not is_nil(pending.from) do
+            if is_nil(pending.from) do
+              Logger.debug("#{prefix(state)} Too many retries, not alerting sender.")
+            else
               Logger.debug("#{prefix(state)} Too many retries, alerting sender.")
               GenServer.reply(p.from, {:error, "Too many retries"})
-            else
-              Logger.debug("#{prefix(state)} Too many retries, not alerting sender.")
             end
           end)
 

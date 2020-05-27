@@ -1,4 +1,6 @@
 defmodule Lifx.Protocol.Types do
+  @moduledoc false
+
   defmacro __using__(_opts) do
     quote do
       @getservice 2

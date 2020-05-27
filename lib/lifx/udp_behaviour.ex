@@ -1,4 +1,6 @@
 defmodule Lifx.UdpBehaviour do
-  @callback open(integer(), keyword()) :: {:ok, port()} | {:error, any()}
-  @callback send(port(), String.t(), integer(), bitstring()) :: :ok | {:error, any()}
+  @moduledoc false
+  @callback open(integer(), list()) :: {:ok, port()} | {:error, any()}
+  @callback send(port(), {byte(), byte(), byte(), byte()}, integer(), bitstring()) ::
+              :ok | {:error, any()}
 end

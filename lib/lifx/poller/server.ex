@@ -1,4 +1,6 @@
 defmodule Lifx.Poller.Server do
+  @moduledoc false
+
   use GenServer
 
   alias Lifx.Client

@@ -1,7 +1,10 @@
 defmodule Lifx.Protocol do
+  @moduledoc "Types used by the LIFX protocols"
+
   use Lifx.Protocol.Types
 
   defmodule FrameHeader do
+    @moduledoc "A LIFX FrameHeader portion of the packet"
     @type t :: %__MODULE__{
             origin: integer(),
             tagged: integer(),
@@ -18,6 +21,7 @@ defmodule Lifx.Protocol do
   end
 
   defmodule FrameAddress do
+    @moduledoc "A LIFX FrameAddress portion of the packet"
     @type t :: %__MODULE__{
             target: atom() | :all,
             ack_required: integer(),
@@ -31,6 +35,7 @@ defmodule Lifx.Protocol do
   end
 
   defmodule ProtocolHeader do
+    @moduledoc "A LIFX ProtocolHeader portion of the packet"
     @type t :: %__MODULE__{
             type: integer()
           }
@@ -38,6 +43,7 @@ defmodule Lifx.Protocol do
   end
 
   defmodule Packet do
+    @moduledoc "A LIFX Packet"
     @type t :: %__MODULE__{
             frame_header: FrameHeader.t(),
             frame_address: FrameAddress.t(),
@@ -52,6 +58,7 @@ defmodule Lifx.Protocol do
   end
 
   defmodule Group do
+    @moduledoc "A LIFX group"
     @type t :: %__MODULE__{
             label: String.t(),
             updated_at: integer
@@ -62,6 +69,7 @@ defmodule Lifx.Protocol do
   end
 
   defmodule Location do
+    @moduledoc "A LIFX location"
     @type t :: %__MODULE__{
             label: String.t(),
             updated_at: integer
@@ -72,6 +80,7 @@ defmodule Lifx.Protocol do
   end
 
   defmodule HSBK do
+    @moduledoc "A LIFX colors"
     @type t :: %__MODULE__{
             hue: integer(),
             saturation: integer(),
@@ -85,17 +94,17 @@ defmodule Lifx.Protocol do
 
     @spec hue(HSBK.t()) :: integer
     def hue(hsbk) do
-      round(65535 / 360 * hsbk.hue)
+      round(65_535 / 360 * hsbk.hue)
     end
 
     @spec saturation(HSBK.t()) :: integer
     def saturation(hsbk) do
-      round(65535 / 100 * hsbk.saturation)
+      round(65_535 / 100 * hsbk.saturation)
     end
 
     @spec brightness(HSBK.t()) :: integer
     def brightness(hsbk) do
-      round(65535 / 100 * hsbk.brightness)
+      round(65_535 / 100 * hsbk.brightness)
     end
 
     @spec kelvin(HSBK.t()) :: integer
@@ -105,6 +114,7 @@ defmodule Lifx.Protocol do
   end
 
   defmodule HSBKS do
+    @moduledoc "A list of LIFX colors"
     @type t :: %__MODULE__{
             total_available: integer(),
             index: integer(),
@@ -312,9 +322,9 @@ defmodule Lifx.Protocol do
       kelvin::little-integer-size(16)
     >> = payload
 
-    hue = round(360 / 65535 * hue)
-    saturation = round(100 / 65535 * saturation)
-    brightness = round(100 / 65535 * brightness)
+    hue = round(360 / 65_535 * hue)
+    saturation = round(100 / 65_535 * saturation)
+    brightness = round(100 / 65_535 * brightness)
     %HSBK{:hue => hue, :saturation => saturation, :brightness => brightness, :kelvin => kelvin}
   end
 

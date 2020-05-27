@@ -1,4 +1,6 @@
 defmodule Lifx.Poller do
+  @moduledoc false
+
   alias Lifx.Device
 
   require Logger

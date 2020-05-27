@@ -1,4 +1,6 @@
 defmodule Lifx.Client do
+  @moduledoc false
+
   use Lifx.Protocol.Types
 
   require Logger

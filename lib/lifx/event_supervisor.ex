@@ -1,4 +1,6 @@
 defmodule Lifx.EventSupervisor do
+  @moduledoc false
+
   use DynamicSupervisor
   use Lifx.Protocol.Types
   require Logger

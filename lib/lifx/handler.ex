@@ -1,4 +1,6 @@
 defmodule Lifx.Handler do
+  @moduledoc false
+
   use GenServer
   require Logger
   alias Lifx.Device

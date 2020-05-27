@@ -1,20 +1,23 @@
 defmodule Lifx.Client.Server do
+  @moduledoc false
+
   use GenServer
   use Lifx.Protocol.Types
 
   require Logger
 
-  alias Lifx.Protocol.{FrameHeader, FrameAddress, ProtocolHeader}
-  alias Lifx.Protocol.Packet
-  alias Lifx.Protocol
   alias Lifx.Device
+  alias Lifx.Protocol
+  alias Lifx.Protocol.{FrameAddress, FrameHeader, ProtocolHeader}
+  alias Lifx.Protocol.Packet
 
-  @port 56700
+  @port 56_700
   @multicast Application.get_env(:lifx, :multicast)
   @poll_discover_time Application.get_env(:lifx, :poll_discover_time)
   @udp Application.get_env(:lifx, :udp)
 
   defmodule State do
+    @moduledoc false
     @type t :: %__MODULE__{
             udp: port(),
             source: integer(),
@@ -104,17 +107,16 @@ defmodule Lifx.Client.Server do
     notify(device, :updated)
 
     devices =
-      cond do
-        Enum.any?(state.devices, fn dev -> dev.id == device.id end) ->
-          Enum.map(state.devices, fn d ->
-            cond do
-              device.id == d.id -> device
-              true -> d
-            end
-          end)
-
-        true ->
-          [device | state.devices]
+      if Enum.any?(state.devices, fn dev -> dev.id == device.id end) do
+        Enum.map(state.devices, fn d ->
+          if device.id == d.id do
+            device
+          else
+            d
+          end
+        end)
+      else
+        [device | state.devices]
       end
 
     %State{state | :devices => devices}
@@ -199,7 +201,6 @@ defmodule Lifx.Client.Server do
               device
 
             {:error, error} ->
-              IO.inspect(error)
               Logger.error("Cannot start device child process for #{target}: #{inspect(error)}.")
 
               nil

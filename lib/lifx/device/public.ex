@@ -1,10 +1,12 @@
 defmodule Lifx.Device do
+  @moduledoc false
+
   use Lifx.Protocol.Types
   require Logger
-  alias Lifx.Protocol.Packet
-  alias Lifx.Protocol.{HSBK, HSBKS, Group, Location}
-  alias Lifx.Protocol
   alias Lifx.Device
+  alias Lifx.Protocol
+  alias Lifx.Protocol.{Group, HSBK, HSBKS, Location}
+  alias Lifx.Protocol.Packet
 
   @max_api_timeout Application.get_env(:lifx, :max_api_timeout)
 
@@ -22,7 +24,7 @@ defmodule Lifx.Device do
   defstruct id: 0,
             pid: nil,
             host: {0, 0, 0, 0},
-            port: 57600,
+            port: 56_700,
             label: nil,
             group: %Group{},
             location: %Location{}
@@ -34,13 +36,12 @@ defmodule Lifx.Device do
   end
 
   @spec send_and_wait(Device.t(), integer(), bitstring(), :retry | :response) ::
-          {:ok, bitstring()} | {:error, String.t()}
+          {:ok, map()} | {:error, String.t()}
   defp send_and_wait(%Device{pid: pid, id: id}, protocol_type, payload, mode) do
     request = {:send, protocol_type, payload, mode}
 
-    with {:ok, payload} <- GenServer.call(pid, request, @max_api_timeout) do
-      {:ok, payload}
-    else
+    case GenServer.call(pid, request, @max_api_timeout) do
+      {:ok, payload} -> {:ok, payload}
       {:error, err} -> {:error, err}
     end
   catch
@@ -55,7 +56,7 @@ defmodule Lifx.Device do
 
   @spec on(Device.t()) :: :ok
   def on(%Device{} = device) do
-    set_power(device, 65535)
+    set_power(device, 65_535)
   end
 
   @spec off(Device.t()) :: :ok
@@ -81,7 +82,7 @@ defmodule Lifx.Device do
 
   @spec on_wait(Device.t()) :: {:ok, HSBK.t()} | {:error, String.t()}
   def on_wait(%Device{} = device) do
-    set_power_wait(device, 65535)
+    set_power_wait(device, 65_535)
   end
 
   @spec off_wait(Device.t()) :: {:ok, HSBK.t()} | {:error, String.t()}

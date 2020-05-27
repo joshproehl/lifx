@@ -9,10 +9,10 @@ defmodule LifxTest do
   setup :set_mox_global
   setup :verify_on_exit!
 
-  alias Lifx.Protocol
-  alias Lifx.Protocol.{FrameHeader, FrameAddress, ProtocolHeader}
-  alias Lifx.Protocol.{Packet}
   alias Lifx.Device
+  alias Lifx.Protocol
+  alias Lifx.Protocol.{FrameAddress, FrameHeader, ProtocolHeader}
+  alias Lifx.Protocol.Packet
 
   @discovery_packet %Packet{
     frame_header: %FrameHeader{
@@ -76,9 +76,10 @@ defmodule LifxTest do
     Mox.expect(Lifx.UdpMock, :send, 1, fn _socket, _host, _port, payload ->
       packet = Protocol.parse_packet(payload)
 
-      cond do
-        packet.protocol_header.type != 2 -> nil
-        true -> send(pid, :sent_packet)
+      if packet.protocol_header.type != 2 do
+        nil
+      else
+        send(pid, :sent_packet)
       end
     end)
 
